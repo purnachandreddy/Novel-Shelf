@@ -418,6 +418,7 @@
     } catch (e) { }
     updateNativeBackState();
     updateNavState('shelf');
+    isFirstLoad = false;
   }
 
   // --- Storage ---
@@ -979,70 +980,132 @@
   }
 
   // --- Screen Router / Navigation ---
+  let activeViewTransition = null;
+  let isFirstLoad = true;
+  const TAB_ORDER = { shelf: 0, stats: 1, backup: 2 };
+
   function isRootTab(screenName) {
     return screenName === 'shelf' || screenName === 'stats' || screenName === 'backup';
   }
 
   function showScreen(name, { push = false, id = null, from = null } = {}) {
+    if (activeViewTransition && typeof activeViewTransition.skipTransition === 'function') {
+      try { activeViewTransition.skipTransition(); } catch (e) { }
+      activeViewTransition = null;
+    }
+
     const prevScreen = currentScreen;
     if (name === 'details' || name === 'form') {
       subscreenReturnTo = from || prevScreen || 'shelf';
     }
 
-    // Hide all view screens
-    if (viewShelf) viewShelf.style.display = 'none';
-    if (viewStats) viewStats.style.display = 'none';
-    if (viewBackup) viewBackup.style.display = 'none';
-    if (viewNovelDetails) viewNovelDetails.style.display = 'none';
-    if (modalNovelForm) modalNovelForm.style.display = 'none';
+    let transitionDirection = null;
+    let transitionType = null;
+    let cardCoverEl = null;
 
-    // Show the requested view
-    if (name === 'shelf') {
-      if (viewShelf) viewShelf.style.display = '';
-      viewingNovelId = null;
-      renderLibrary();
-    } else if (name === 'stats') {
-      if (viewStats) viewStats.style.display = 'flex';
-      viewingNovelId = null;
-      updateStatsDashboard();
-      try { window.scrollTo({ top: 0, behavior: 'instant' }); } catch (e) { }
-    } else if (name === 'backup') {
-      if (viewBackup) viewBackup.style.display = 'flex';
-      viewingNovelId = null;
-      try { window.scrollTo({ top: 0, behavior: 'instant' }); } catch (e) { }
-    } else if (name === 'details') {
-      const targetId = id || viewingNovelId;
-      if (targetId) {
-        const novel = library.find(n => n.id === targetId);
-        if (novel) {
-          viewingNovelId = targetId;
-          renderNovelDetailsContent(novel);
-        }
+    const canAnimate = !isFirstLoad &&
+      (typeof window.effectsReduced === 'function' ? !window.effectsReduced() : true) &&
+      typeof document.startViewTransition === 'function';
+
+    if (canAnimate) {
+      if (isRootTab(prevScreen) && isRootTab(name) && prevScreen !== name) {
+        transitionDirection = (TAB_ORDER[name] || 0) > (TAB_ORDER[prevScreen] || 0) ? 'forward' : 'backward';
+      } else if (name === 'form' || prevScreen === 'form') {
+        transitionType = 'sheet';
+      } else if (name === 'details' && (id || viewingNovelId)) {
+        const targetId = id || viewingNovelId;
+        cardCoverEl = document.querySelector(`.novel-card[data-id="${targetId}"] .card-cover-wrap`) ||
+          document.querySelector(`.novel-card[data-id="${targetId}"] .card-cover-column`);
       }
-      if (viewNovelDetails) viewNovelDetails.style.display = 'flex';
-      try { window.scrollTo({ top: 0, behavior: 'instant' }); } catch (e) { }
-    } else if (name === 'form') {
-      if (modalNovelForm) modalNovelForm.style.display = 'flex';
-      try { window.scrollTo({ top: 0, behavior: 'instant' }); } catch (e) { }
     }
 
-    currentScreen = name;
+    const updateDOM = () => {
+      // Hide all view screens
+      if (viewShelf) viewShelf.style.display = 'none';
+      if (viewStats) viewStats.style.display = 'none';
+      if (viewBackup) viewBackup.style.display = 'none';
+      if (viewNovelDetails) viewNovelDetails.style.display = 'none';
+      if (modalNovelForm) modalNovelForm.style.display = 'none';
 
-    // History management
-    try {
-      if (window.history) {
-        if (isRootTab(name)) {
-          window.history.replaceState({ screen: name }, '');
-        } else if (push) {
-          window.history.pushState({ screen: name, id: id || viewingNovelId, from: subscreenReturnTo }, '');
+      // Show the requested view
+      if (name === 'shelf') {
+        if (viewShelf) viewShelf.style.display = '';
+        viewingNovelId = null;
+        renderLibrary();
+      } else if (name === 'stats') {
+        if (viewStats) viewStats.style.display = 'flex';
+        viewingNovelId = null;
+        updateStatsDashboard();
+        try { window.scrollTo({ top: 0, behavior: 'instant' }); } catch (e) { }
+      } else if (name === 'backup') {
+        if (viewBackup) viewBackup.style.display = 'flex';
+        viewingNovelId = null;
+        try { window.scrollTo({ top: 0, behavior: 'instant' }); } catch (e) { }
+      } else if (name === 'details') {
+        const targetId = id || viewingNovelId;
+        if (targetId) {
+          const novel = library.find(n => n.id === targetId);
+          if (novel) {
+            viewingNovelId = targetId;
+            renderNovelDetailsContent(novel);
+          }
         }
+        if (viewNovelDetails) viewNovelDetails.style.display = 'flex';
+        try { window.scrollTo({ top: 0, behavior: 'instant' }); } catch (e) { }
+      } else if (name === 'form') {
+        if (modalNovelForm) modalNovelForm.style.display = 'flex';
+        try { window.scrollTo({ top: 0, behavior: 'instant' }); } catch (e) { }
       }
-    } catch (e) {
-      // Ignore history API errors
-    }
 
-    updateNativeBackState();
-    updateNavState(name);
+      currentScreen = name;
+
+      // History management
+      try {
+        if (window.history) {
+          if (isRootTab(name)) {
+            window.history.replaceState({ screen: name }, '');
+          } else if (push) {
+            window.history.pushState({ screen: name, id: id || viewingNovelId, from: subscreenReturnTo }, '');
+          }
+        }
+      } catch (e) {
+        // Ignore history API errors
+      }
+
+      updateNativeBackState();
+      updateNavState(name);
+    };
+
+    if (transitionDirection || transitionType || cardCoverEl) {
+      if (transitionDirection) document.documentElement.dataset.transitionDirection = transitionDirection;
+      if (transitionType) document.documentElement.dataset.transitionType = transitionType;
+      if (cardCoverEl) cardCoverEl.style.viewTransitionName = 'novel-cover';
+
+      try {
+        const vt = document.startViewTransition(() => {
+          if (cardCoverEl) cardCoverEl.style.viewTransitionName = '';
+          updateDOM();
+          const detailCoverBox = document.querySelector('.detail-cover-box');
+          if (detailCoverBox) detailCoverBox.style.viewTransitionName = 'novel-cover';
+        });
+        activeViewTransition = vt;
+
+        vt.finished.finally(() => {
+          delete document.documentElement.dataset.transitionDirection;
+          delete document.documentElement.dataset.transitionType;
+          const detailCoverBox = document.querySelector('.detail-cover-box');
+          if (detailCoverBox) detailCoverBox.style.viewTransitionName = '';
+          if (activeViewTransition === vt) activeViewTransition = null;
+        });
+      } catch (err) {
+        delete document.documentElement.dataset.transitionDirection;
+        delete document.documentElement.dataset.transitionType;
+        if (cardCoverEl) cardCoverEl.style.viewTransitionName = '';
+        updateDOM();
+      }
+    } else {
+      updateDOM();
+    }
   }
 
   // --- Details Tab (Full-Page View) ---

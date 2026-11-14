@@ -2438,6 +2438,96 @@ textarea { resize: vertical; min-height: 80px; }
   box-shadow: 0 0 28px 0px rgba(245, 158, 11, 0.5), 0 10px 28px rgba(0, 0, 0, 0.5);
 }
 
+/* ---- View Transitions API (ColorOS 17 Living Flow) ---- */
+::view-transition-old(app-header),
+::view-transition-new(app-header) {
+  animation: none !important;
+  mix-blend-mode: normal;
+}
+::view-transition-old(floating-nav),
+::view-transition-new(floating-nav) {
+  animation: none !important;
+  mix-blend-mode: normal;
+}
+
+.app-header {
+  view-transition-name: app-header;
+}
+.floating-nav-container {
+  view-transition-name: floating-nav;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--dur-move);
+  animation-timing-function: var(--ease-sheet);
+}
+
+/* Tab Horizontal Slide */
+[data-transition-direction="forward"]::view-transition-old(root) {
+  animation-name: slideOutLeft;
+  animation-duration: var(--dur-move);
+  animation-timing-function: var(--ease-sheet);
+}
+[data-transition-direction="forward"]::view-transition-new(root) {
+  animation-name: slideInRight;
+  animation-duration: var(--dur-move);
+  animation-timing-function: var(--ease-sheet);
+}
+[data-transition-direction="backward"]::view-transition-old(root) {
+  animation-name: slideOutRight;
+  animation-duration: var(--dur-move);
+  animation-timing-function: var(--ease-sheet);
+}
+[data-transition-direction="backward"]::view-transition-new(root) {
+  animation-name: slideInLeft;
+  animation-duration: var(--dur-move);
+  animation-timing-function: var(--ease-sheet);
+}
+
+@keyframes slideOutLeft {
+  to { opacity: 0; transform: translateX(-36px); }
+}
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(36px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes slideOutRight {
+  to { opacity: 0; transform: translateX(36px); }
+}
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-36px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* Sheet Slide Up */
+[data-transition-type="sheet"]::view-transition-old(root) {
+  animation-name: fadeOut;
+  animation-duration: var(--dur-move);
+  animation-timing-function: var(--ease-sheet);
+}
+[data-transition-type="sheet"]::view-transition-new(root) {
+  animation-name: sheetSlideUp;
+  animation-duration: var(--dur-move);
+  animation-timing-function: var(--ease-sheet);
+}
+
+@keyframes sheetSlideUp {
+  from { opacity: 0; transform: translateY(40px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeOut {
+  to { opacity: 0; }
+}
+
+/* Card -> Details Shared Cover Transition */
+::view-transition-old(novel-cover),
+::view-transition-new(novel-cover) {
+  animation-duration: var(--dur-move);
+  animation-timing-function: var(--ease-sheet);
+  mix-blend-mode: normal;
+}
+
 /* ---- Toast System ---- */
 .toast-container {
   position: fixed;
@@ -2625,4 +2715,13 @@ textarea { resize: vertical; min-height: 80px; }
 [data-reduced-motion="true"] .floating-nav-container.nav-hidden,
 .reduced-effects .floating-nav-container.nav-hidden {
   transform: translateX(-50%) !important;
+}
+
+[data-reduced-motion="true"]::view-transition-group(*),
+[data-reduced-motion="true"]::view-transition-old(*),
+[data-reduced-motion="true"]::view-transition-new(*),
+.reduced-effects::view-transition-group(*),
+.reduced-effects::view-transition-old(*),
+.reduced-effects::view-transition-new(*) {
+  animation: none !important;
 }
