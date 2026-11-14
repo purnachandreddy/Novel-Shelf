@@ -99,6 +99,14 @@ class MainActivity : AppCompatActivity() {
                 exportDocumentLauncher.launch(suggestedFilename)
             }
         }
+
+        @Volatile
+        var canGoBackInJs: Boolean = false
+
+        @JavascriptInterface
+        fun setCanGoBack(canGoBack: Boolean) {
+            canGoBackInJs = canGoBack
+        }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -126,17 +134,22 @@ class MainActivity : AppCompatActivity() {
             insets
         }
 
-        // Back navigation: JS pushState handles modal/screen, canGoBack handles the rest
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+        // Back navigation: JS manages screens, modals, and history; finish only when on root shelf
+        val backCallback = object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (binding.webView.canGoBack()) {
-                    binding.webView.goBack()
-                } else {
-                    isEnabled = false
-                    onBackPressedDispatcher.onBackPressed()
+                binding.webView.evaluateJavascript("window.handleAppBack ? window.handleAppBack() : false") { result ->
+                    val handled = result == "true"
+                    if (!handled) {
+                        runOnUiThread {
+                            isEnabled = false
+                            onBackPressedDispatcher.onBackPressed()
+                            isEnabled = true
+                        }
+                    }
                 }
             }
-        })
+        }
+        onBackPressedDispatcher.addCallback(this, backCallback)
 
         val assetLoader = WebViewAssetLoader.Builder()
             .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))

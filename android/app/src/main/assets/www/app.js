@@ -50,6 +50,8 @@
 
   // A1 — track whether the edit form was opened from details view
   let formOpenedFromDetails = false;
+  let currentScreen = 'shelf';
+  let subscreenReturnTo = 'shelf';
 
   // A9 — cancel function for the active confirm dialog
   let activeConfirmCancel = null;
@@ -290,6 +292,18 @@
   const btnResetFilters = document.getElementById('btn-reset-filters');
   const toastContainer = document.getElementById('toast-container');
 
+  // --- Navigation & Native Back Bridge ---
+  function canHandleBack() {
+    const isConfirmOpen = !!(confirmDialog && confirmDialog.style.display === 'flex');
+    return isConfirmOpen || currentScreen !== 'shelf';
+  }
+
+  function updateNativeBackState() {
+    if (window.Android && typeof window.Android.setCanGoBack === 'function') {
+      window.Android.setCanGoBack(canHandleBack());
+    }
+  }
+
   // --- Custom Confirm Dialog (2-button: yes / no) ---
   // A9 — guard against two dialogs open at once; expose cancel handle for popstate
   function showConfirm(message, yesLabel = 'Delete', noLabel = 'Cancel') {
@@ -299,12 +313,14 @@
       btnConfirmYes.textContent = yesLabel;
       btnConfirmNo.textContent = noLabel;
       confirmDialog.style.display = 'flex';
+      updateNativeBackState();
 
       const finish = (val) => {
         activeConfirmCancel = null;
         confirmDialog.style.display = 'none';
         btnConfirmYes.removeEventListener('click', onYes);
         btnConfirmNo.removeEventListener('click', onNo);
+        updateNativeBackState();
         resolve(val);
       };
       const onYes = () => finish(true);
@@ -331,6 +347,7 @@
       btnConfirmYes.parentNode.insertBefore(btnMerge, btnConfirmYes);
 
       confirmDialog.style.display = 'flex';
+      updateNativeBackState();
 
       const cleanup = (val) => {
         activeConfirmCancel = null;
@@ -339,6 +356,7 @@
         btnConfirmYes.removeEventListener('click', onReplace);
         btnConfirmNo.removeEventListener('click', onCancel);
         btnMerge.removeEventListener('click', onMerge);
+        updateNativeBackState();
         resolve(val);
       };
       const onReplace = () => cleanup('replace');
@@ -361,6 +379,12 @@
     updateGenreDropdown();
     updateTabBadges();
     updateStatsDashboard();
+    try {
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState({ screen: 'shelf' }, '');
+      }
+    } catch (e) { }
+    updateNativeBackState();
   }
 
   // --- Storage ---
@@ -920,121 +944,116 @@
     }
   }
 
-  // --- Details Tab (Full-Page View) ---
-  function openNovelDetails(id) {
-    const novel = library.find(n => n.id === id);
-    if (!novel) return;
-    viewingNovelId = id;
-    renderNovelDetailsContent(novel);
-    viewShelf.style.display = 'none';
-    viewNovelDetails.style.display = 'flex';
+  // --- Screen Router / Navigation ---
+  function isRootTab(screenName) {
+    return screenName === 'shelf' || screenName === 'stats' || screenName === 'backup';
+  }
+
+  function showScreen(name, { push = false, id = null, from = null } = {}) {
+    const prevScreen = currentScreen;
+    if (name === 'details' || name === 'form') {
+      subscreenReturnTo = from || prevScreen || 'shelf';
+    }
+
+    // Hide all view screens
+    if (viewShelf) viewShelf.style.display = 'none';
+    if (viewStats) viewStats.style.display = 'none';
+    if (viewBackup) viewBackup.style.display = 'none';
+    if (viewNovelDetails) viewNovelDetails.style.display = 'none';
+    if (modalNovelForm) modalNovelForm.style.display = 'none';
+
+    // Show the requested view
+    if (name === 'shelf') {
+      if (viewShelf) viewShelf.style.display = '';
+      viewingNovelId = null;
+      renderLibrary();
+    } else if (name === 'stats') {
+      if (viewStats) viewStats.style.display = 'flex';
+      viewingNovelId = null;
+      updateStatsDashboard();
+      try { window.scrollTo({ top: 0, behavior: 'instant' }); } catch (e) { }
+    } else if (name === 'backup') {
+      if (viewBackup) viewBackup.style.display = 'flex';
+      viewingNovelId = null;
+      try { window.scrollTo({ top: 0, behavior: 'instant' }); } catch (e) { }
+    } else if (name === 'details') {
+      const targetId = id || viewingNovelId;
+      if (targetId) {
+        const novel = library.find(n => n.id === targetId);
+        if (novel) {
+          viewingNovelId = targetId;
+          renderNovelDetailsContent(novel);
+        }
+      }
+      if (viewNovelDetails) viewNovelDetails.style.display = 'flex';
+      try { window.scrollTo({ top: 0, behavior: 'instant' }); } catch (e) { }
+    } else if (name === 'form') {
+      if (modalNovelForm) modalNovelForm.style.display = 'flex';
+      try { window.scrollTo({ top: 0, behavior: 'instant' }); } catch (e) { }
+    }
+
+    currentScreen = name;
+
+    // History management
     try {
-      window.scrollTo({ top: 0, behavior: 'instant' });
-      if (window.history && window.history.pushState) {
-        window.history.pushState({ screen: 'details', id: id }, '');
+      if (window.history) {
+        if (isRootTab(name)) {
+          window.history.replaceState({ screen: name }, '');
+        } else if (push) {
+          window.history.pushState({ screen: name, id: id || viewingNovelId, from: subscreenReturnTo }, '');
+        }
       }
     } catch (e) {
-      // ignore history errors
+      // Ignore history API errors
     }
+
+    updateNativeBackState();
+  }
+
+  // --- Details Tab (Full-Page View) ---
+  function openNovelDetails(id, from = currentScreen) {
+    showScreen('details', { push: true, id, from });
   }
 
   function closeNovelDetails(popHistory = true) {
-    viewNovelDetails.style.display = 'none';
-    viewShelf.style.display = '';
-    viewingNovelId = null;
-    try {
-      if (popHistory && window.history && window.history.state && window.history.state.screen === 'details') {
-        window.history.back();
-      }
-    } catch (e) {
-      // ignore history errors
+    if (popHistory && window.history && window.history.state && window.history.state.screen === 'details') {
+      window.history.back();
+    } else {
+      showScreen(subscreenReturnTo || 'shelf', { push: false });
     }
-    renderLibrary();
   }
 
   // --- Full-Page Reading Stats Tab ---
   function openStatsView() {
-    viewShelf.style.display = 'none';
-    if (viewNovelDetails) viewNovelDetails.style.display = 'none';
-    if (viewBackup) viewBackup.style.display = 'none';
-    if (viewStats) viewStats.style.display = 'flex';
-    updateStatsDashboard();
-    try {
-      if (window.history && window.history.pushState) {
-        window.history.pushState({ screen: 'stats' }, '');
-      }
-    } catch (e) { }
+    showScreen('stats');
   }
 
   function closeStatsView(popHistory = true) {
-    if (viewStats) viewStats.style.display = 'none';
-    viewShelf.style.display = '';
-    try {
-      if (popHistory && window.history && window.history.state && window.history.state.screen === 'stats') {
-        window.history.back();
-      }
-    } catch (e) { }
+    showScreen('shelf');
   }
 
   // --- Full-Page Backup & Restore Tab ---
   function openBackupView() {
-    viewShelf.style.display = 'none';
-    if (viewNovelDetails) viewNovelDetails.style.display = 'none';
-    if (viewStats) viewStats.style.display = 'none';
-    if (viewBackup) viewBackup.style.display = 'flex';
-    try {
-      if (window.history && window.history.pushState) {
-        window.history.pushState({ screen: 'backup' }, '');
-      }
-    } catch (e) { }
+    showScreen('backup');
   }
 
   function closeBackupView(popHistory = true) {
-    if (viewBackup) viewBackup.style.display = 'none';
-    viewShelf.style.display = '';
-    try {
-      if (popHistory && window.history && window.history.state && window.history.state.screen === 'backup') {
-        window.history.back();
-      }
-    } catch (e) { }
+    showScreen('shelf');
   }
 
-  // A1 — if form was opened from details, return to details; else return to shelf
+  // --- Novel Form (Add / Edit Full-Page Screen) ---
+  function openFormModal(from = currentScreen) {
+    showScreen('form', { push: true, from });
+  }
+
   function closeFormModal(popHistory = true) {
-    if (modalNovelForm) modalNovelForm.style.display = 'none';
-    if (formOpenedFromDetails && viewingNovelId) {
-      const stillExists = library.find(n => n.id === viewingNovelId);
-      if (stillExists) {
-        viewNovelDetails.style.display = 'flex';
-        viewShelf.style.display = 'none';
-        // Don't pop history here — the form state was pushed on top of details state
-      } else {
-        viewShelf.style.display = '';
-      }
+    if (popHistory && window.history && window.history.state && window.history.state.screen === 'form') {
+      window.history.back();
     } else {
-      viewShelf.style.display = '';
+      const destination = (formOpenedFromDetails && viewingNovelId) ? 'details' : (subscreenReturnTo || 'shelf');
+      formOpenedFromDetails = false;
+      showScreen(destination, { push: false, id: viewingNovelId });
     }
-    formOpenedFromDetails = false;
-    // Pop the history state pushed when the form opened
-    try {
-      if (popHistory && window.history && window.history.state && window.history.state.screen === 'form') {
-        window.history.back();
-      }
-    } catch (e) { }
-  }
-
-  function openFormModal() {
-    viewShelf.style.display = 'none';
-    if (viewNovelDetails) viewNovelDetails.style.display = 'none';
-    if (viewStats) viewStats.style.display = 'none';
-    if (viewBackup) viewBackup.style.display = 'none';
-    if (modalNovelForm) modalNovelForm.style.display = 'flex';
-    try {
-      window.scrollTo({ top: 0, behavior: 'instant' });
-      if (window.history && window.history.pushState) {
-        window.history.pushState({ screen: 'form' }, '');
-      }
-    } catch (e) { }
   }
 
   function renderNovelDetailsContent(novel) {
@@ -1551,8 +1570,7 @@
           // Click to view details
           item.style.cursor = 'pointer';
           item.addEventListener('click', () => {
-            closeStatsView(false);
-            openNovelDetails(n.id);
+            openNovelDetails(n.id, 'stats');
           });
           readingProgressList.appendChild(item);
         });
@@ -1666,8 +1684,7 @@
               <span class="top-metric">★ ${item.rating.toFixed(1)} (${item.chaptersRead} ch)</span>
             `;
             row.addEventListener('click', () => {
-              closeStatsView(false);
-              openNovelDetails(item.id);
+              openNovelDetails(item.id, 'stats');
             });
             listHighestRated.appendChild(row);
           });
@@ -1691,8 +1708,7 @@
               <span class="top-metric">${item.chaptersRead.toLocaleString()} ch</span>
             `;
             row.addEventListener('click', () => {
-              closeStatsView(false);
-              openNovelDetails(item.id);
+              openNovelDetails(item.id, 'stats');
             });
             listLongestCompleted.appendChild(row);
           });
@@ -2467,61 +2483,61 @@
       if (viewingNovelId) deleteNovel(viewingNovelId);
     });
 
-    // History popstate (Android back button & browser back navigation)
-    window.addEventListener('popstate', (e) => {
-      // A9 — Back with confirm dialog open
+    // --- Centralized Back Sequence ---
+    // 1. If confirm dialog open: cancel it
+    // 2. Else if on sub-screen (details or form): pop back to previous screen
+    // 3. Else if on any root tab other than Shelf (stats, backup): go to Shelf
+    // 4. Else if on Shelf: exit app (return false to native Android dispatcher)
+    function handleAppBack() {
       if (confirmDialog && confirmDialog.style.display === 'flex') {
         if (typeof activeConfirmCancel === 'function') {
           activeConfirmCancel();
         }
-        // Restore the current screen state in history so underlying screen doesn't pop
-        const currentScreenState = (modalNovelForm && modalNovelForm.style.display === 'flex')
-          ? { screen: 'form' }
-          : (viewNovelDetails && viewNovelDetails.style.display === 'flex')
-            ? { screen: 'details', id: viewingNovelId }
-            : (viewStats && viewStats.style.display === 'flex')
-              ? { screen: 'stats' }
-              : (viewBackup && viewBackup.style.display === 'flex')
-                ? { screen: 'backup' }
-                : null;
+        updateNativeBackState();
+        return true;
+      }
 
-        if (currentScreenState && window.history && window.history.pushState) {
-          window.history.pushState(currentScreenState, '');
+      if (currentScreen === 'form') {
+        closeFormModal(true);
+        return true;
+      }
+      if (currentScreen === 'details') {
+        closeNovelDetails(true);
+        return true;
+      }
+
+      if (currentScreen === 'stats' || currentScreen === 'backup') {
+        showScreen('shelf');
+        return true;
+      }
+
+      return false;
+    }
+    window.handleAppBack = handleAppBack;
+
+    // History popstate (Android back button & browser back navigation)
+    window.addEventListener('popstate', (e) => {
+      // If confirm dialog open: cancel it
+      if (confirmDialog && confirmDialog.style.display === 'flex') {
+        if (typeof activeConfirmCancel === 'function') {
+          activeConfirmCancel();
         }
+        updateNativeBackState();
         return;
       }
 
-      if (modalNovelForm && modalNovelForm.style.display === 'flex') {
-        closeFormModal(false);
-      } else if (viewNovelDetails && viewNovelDetails.style.display === 'flex') {
-        closeNovelDetails(false);
-      } else if (viewStats && viewStats.style.display === 'flex') {
-        closeStatsView(false);
-      } else if (viewBackup && viewBackup.style.display === 'flex') {
-        closeBackupView(false);
+      const state = e.state;
+      if (state && state.screen) {
+        showScreen(state.screen, { push: false, id: state.id, from: state.from });
+      } else {
+        showScreen('shelf', { push: false });
       }
     });
 
     // Escape to close screens / modals
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
-        if (confirmDialog && confirmDialog.style.display === 'flex') return;
-        if (modalNovelForm && modalNovelForm.style.display === 'flex') {
-          closeFormModal(true);
-          return;
-        }
-        if (viewNovelDetails && viewNovelDetails.style.display === 'flex') {
-          closeNovelDetails(true);
-          return;
-        }
-        if (viewStats && viewStats.style.display === 'flex') {
-          closeStatsView(true);
-          return;
-        }
-        if (viewBackup && viewBackup.style.display === 'flex') {
-          closeBackupView(true);
-          return;
-        }
+        handleAppBack();
       }
     });
 
