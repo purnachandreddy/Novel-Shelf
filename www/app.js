@@ -323,7 +323,10 @@
         updateNativeBackState();
         resolve(val);
       };
-      const onYes = () => finish(true);
+      const onYes = () => {
+        if (window.Motion) Motion.haptic('confirm');
+        finish(true);
+      };
       const onNo = () => finish(false);
       btnConfirmYes.addEventListener('click', onYes);
       btnConfirmNo.addEventListener('click', onNo);
@@ -359,8 +362,14 @@
         updateNativeBackState();
         resolve(val);
       };
-      const onReplace = () => cleanup('replace');
-      const onMerge = () => cleanup('merge');
+      const onReplace = () => {
+        if (window.Motion) Motion.haptic('confirm');
+        cleanup('replace');
+      };
+      const onMerge = () => {
+        if (window.Motion) Motion.haptic('confirm');
+        cleanup('merge');
+      };
       const onCancel = () => cleanup('cancel');
 
       btnConfirmYes.addEventListener('click', onReplace);
@@ -876,6 +885,7 @@
   // --- Increment Chapter ---
   // A7 — update card in-place (no resort while shelf is visible)
   function incrementChapter(id, amount) {
+    if (window.Motion) Motion.haptic('tick');
     const novel = library.find(n => n.id === id);
     if (!novel) return;
 
@@ -1169,6 +1179,7 @@
   }
 
   function openAddModal() {
+    if (window.Motion) Motion.haptic('tick');
     formOpenedFromDetails = false; // A1 — opened from shelf
     novelForm.reset();
     formNovelId.value = '';

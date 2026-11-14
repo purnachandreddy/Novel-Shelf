@@ -361,8 +361,10 @@ body.ambient-paused::after {
   color: var(--text-on-accent);
   box-shadow: 0 3px 12px rgba(245,158,11,.35);
 }
-.btn-primary:hover  { background: linear-gradient(135deg, var(--amber-light), var(--amber)); box-shadow: 0 5px 18px rgba(245,158,11,.5); transform: translateY(-1px); }
-.btn-primary:active { transform: translateY(0); }
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary:hover { background: linear-gradient(135deg, var(--amber-light), var(--amber)); box-shadow: 0 5px 18px rgba(245,158,11,.5); transform: translateY(-1px); }
+}
+.btn-primary:active { transform: none; }
 
 .btn-secondary {
   background: var(--glass-fill);
@@ -1286,14 +1288,16 @@ select option { background: var(--bg-elevated); color: var(--text-primary); }
   from { opacity: 0; transform: translateY(8px) scale(.98); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
-.novel-card:hover {
-  transform: translateY(-4px) translateZ(0);
-  background: var(--glass-fill-strong);
-  border-color: rgba(245, 158, 11, 0.45);
-  box-shadow: var(--contour-edge), var(--contour-glow-amber);
+@media (hover: hover) and (pointer: fine) {
+  .novel-card:hover {
+    transform: translateY(-4px) translateZ(0);
+    background: var(--glass-fill-strong);
+    border-color: rgba(245, 158, 11, 0.45);
+    box-shadow: var(--contour-edge), var(--contour-glow-amber);
+  }
 }
 .novel-card:active {
-  transform: translateY(-1px) scale(0.98) translateZ(0);
+  transform: none;
 }
 
 /* Cover Column & Wrap */
@@ -1567,7 +1571,6 @@ select option { background: var(--bg-elevated); color: var(--text-primary); }
   background: var(--amber);
   color: #0b0e14;
   border-color: var(--amber);
-  transform: scale(1.05);
 }
 
 /* LIST VIEW - badge moved below the image in the empty space */

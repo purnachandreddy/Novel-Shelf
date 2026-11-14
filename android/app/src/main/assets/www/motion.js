@@ -115,6 +115,201 @@
     };
   }
 
+  // --- Delegated Squish / Spring Press System ---
+  let activeTarget = null;
+  let activePointerId = null;
+  let startX = 0;
+  let startY = 0;
+  let cardTimer = null;
+  let isCard = false;
+  let currentSpring = null;
+  let currentScaleX = 1;
+  let currentScaleY = 1;
+  let currentTransX = 0;
+  let currentTransY = 0;
+
+  function isSquishable(element) {
+    if (!element || element.nodeType !== 1) return null;
+    return element.closest(
+      '[data-squish], .btn, .icon-btn, .status-tab, .time-pill-btn, .pill-btn, .toggle-btn, .btn-quick-chapter, .novel-card, .btn-back, .nav-item'
+    );
+  }
+
+  function cancelActivePress(returnToRest = true) {
+    if (cardTimer) {
+      clearTimeout(cardTimer);
+      cardTimer = null;
+    }
+    if (!activeTarget) return;
+
+    const el = activeTarget;
+    activeTarget = null;
+    activePointerId = null;
+
+    if (currentSpring) {
+      currentSpring.cancel();
+      currentSpring = null;
+    }
+
+    if (returnToRest && !effectsReduced()) {
+      const fromSx = currentScaleX;
+      const fromSy = currentScaleY;
+      const fromTx = currentTransX;
+      const fromTy = currentTransY;
+
+      currentSpring = createSpring({
+        stiffness: isCard ? 300 : 360,
+        damping: isCard ? 20 : 18,
+        mass: 1,
+        from: 0,
+        to: 1,
+        onUpdate(progress) {
+          currentScaleX = fromSx + (1 - fromSx) * progress;
+          currentScaleY = fromSy + (1 - fromSy) * progress;
+          currentTransX = fromTx * (1 - progress);
+          currentTransY = fromTy * (1 - progress);
+
+          el.style.transform = `translate3d(${currentTransX.toFixed(2)}px, ${currentTransY.toFixed(2)}px, 0) scale(${currentScaleX.toFixed(4)}, ${currentScaleY.toFixed(4)})`;
+        },
+        onComplete() {
+          el.style.transform = '';
+          el.style.willChange = '';
+          currentScaleX = 1;
+          currentScaleY = 1;
+          currentTransX = 0;
+          currentTransY = 0;
+          currentSpring = null;
+        }
+      });
+    } else {
+      el.style.transform = '';
+      el.style.willChange = '';
+      currentScaleX = 1;
+      currentScaleY = 1;
+      currentTransX = 0;
+      currentTransY = 0;
+    }
+  }
+
+  function startPress(el, pointerId, clientX, clientY) {
+    if (effectsReduced()) return;
+
+    if (activeTarget && activeTarget !== el) {
+      cancelActivePress(true);
+    }
+
+    activeTarget = el;
+    activePointerId = pointerId;
+    startX = clientX;
+    startY = clientY;
+    isCard = el.matches('.novel-card') || el.dataset.squish === 'card';
+
+    const rect = el.getBoundingClientRect();
+    const aspect = rect.width / (rect.height || 1);
+
+    let targetScaleX = 0.94;
+    let targetScaleY = 0.94;
+
+    if (isCard) {
+      targetScaleX = 0.97;
+      targetScaleY = 0.97;
+    } else if (aspect >= 1.5) {
+      // Wider element (e.g. pill or button): compresses vertically more
+      targetScaleX = 0.96;
+      targetScaleY = 0.92;
+    }
+
+    function applyCompression() {
+      if (!activeTarget || activeTarget !== el) return;
+      el.style.willChange = 'transform';
+
+      if (currentSpring) {
+        currentSpring.cancel();
+        currentSpring = null;
+      }
+
+      const fromSx = currentScaleX;
+      const fromSy = currentScaleY;
+
+      currentSpring = createSpring({
+        stiffness: 420,
+        damping: 26,
+        mass: 1,
+        from: 0,
+        to: 1,
+        onUpdate(progress) {
+          currentScaleX = fromSx + (targetScaleX - fromSx) * progress;
+          currentScaleY = fromSy + (targetScaleY - fromSy) * progress;
+          el.style.transform = `translate3d(${currentTransX.toFixed(2)}px, ${currentTransY.toFixed(2)}px, 0) scale(${currentScaleX.toFixed(4)}, ${currentScaleY.toFixed(4)})`;
+        },
+        onComplete() {
+          currentSpring = null;
+        }
+      });
+    }
+
+    if (isCard) {
+      cardTimer = setTimeout(applyCompression, 60);
+    } else {
+      applyCompression();
+    }
+  }
+
+  function handlePointerDown(e) {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    const target = isSquishable(e.target);
+    if (!target) return;
+    startPress(target, e.pointerId, e.clientX, e.clientY);
+  }
+
+  function handlePointerMove(e) {
+    if (!activeTarget || e.pointerId !== activePointerId) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    const dist = Math.hypot(dx, dy);
+
+    if (dist > 8) {
+      cancelActivePress(true);
+      return;
+    }
+
+    if (!isCard) {
+      currentTransX = dx * 0.15;
+      currentTransY = dy * 0.15;
+      activeTarget.style.transform = `translate3d(${currentTransX.toFixed(2)}px, ${currentTransY.toFixed(2)}px, 0) scale(${currentScaleX.toFixed(4)}, ${currentScaleY.toFixed(4)})`;
+    }
+  }
+
+  function handlePointerUp(e) {
+    if (!activeTarget || e.pointerId !== activePointerId) return;
+    cancelActivePress(true);
+  }
+
+  function handlePointerCancel(e) {
+    if (!activeTarget || e.pointerId !== activePointerId) return;
+    cancelActivePress(true);
+  }
+
+  function handleScroll() {
+    if (activeTarget) {
+      cancelActivePress(true);
+    }
+  }
+
+  function initSquish() {
+    document.addEventListener('pointerdown', handlePointerDown, { passive: true });
+    document.addEventListener('pointermove', handlePointerMove, { passive: true });
+    document.addEventListener('pointerup', handlePointerUp, { passive: true });
+    document.addEventListener('pointercancel', handlePointerCancel, { passive: true });
+    window.addEventListener('scroll', handleScroll, { passive: true, capture: true });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSquish);
+  } else {
+    initSquish();
+  }
+
   // Global namespace export
   global.Motion = {
     effectsReduced,
