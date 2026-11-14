@@ -1466,10 +1466,19 @@ select option { background: var(--bg-elevated); color: var(--text-primary); }
 .novels-grid .card-content {
   padding: 6px 8px 8px;
   gap: 2px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
 }
 .novels-grid .card-title {
   font-size: .8rem;
-  line-height: 1.2;
+  line-height: 1.25;
+  min-height: 2.5em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 .novels-grid .card-author {
   font-size: .67rem;
@@ -1482,10 +1491,16 @@ select option { background: var(--bg-elevated); color: var(--text-primary); }
   padding: 1px 4px;
   font-size: .65rem;
 }
+.novels-grid .rating-unrated {
+  font-size: .64rem;
+}
 .novels-grid .genre-pill {
   padding: 1px 4px;
   font-size: .62rem;
   max-width: 55px;
+}
+.novels-grid .card-progress-wrap {
+  margin-top: auto;
 }
 .novels-grid .progress-info {
   font-size: .65rem;
@@ -1562,6 +1577,16 @@ select option { background: var(--bg-elevated); color: var(--text-primary); }
   border-radius: var(--r-sm);
 }
 .rating-num { font-size: .72rem; color: var(--amber-light); }
+.rating-unrated {
+  font-size: .68rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  background: transparent;
+  padding: 0;
+  border: none;
+}
 .genre-pill {
   font-size: .67rem;
   color: var(--text-secondary);
@@ -2109,6 +2134,7 @@ textarea { resize: vertical; min-height: 80px; }
 }
 
 /* ---- Novel Details Tab / Full-Page View ---- */
+#view-novel-details,
 .details-page-view {
   display: flex;
   flex-direction: column;
@@ -2224,6 +2250,8 @@ textarea { resize: vertical; min-height: 80px; }
 }
 @media (max-width: 500px) {
   .detail-hero { flex-direction: column; align-items: center; text-align: center; }
+  .detail-badges-row { justify-content: center; }
+  .detail-progress-buttons { justify-content: center; flex-wrap: wrap; }
 }
 .detail-cover-box {
   width: 130px; min-width: 130px;
@@ -2252,8 +2280,10 @@ textarea { resize: vertical; min-height: 80px; }
   border-radius: var(--r-sm);
 }
 .detail-rating-num { font-size: .8rem; font-weight: 800; color: var(--amber-light); margin-left: 2px; }
+.detail-unrated { font-size: .78rem; color: var(--text-muted); padding: 3px 0; }
 
 .detail-badges-row { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }
+.detail-badges-row .genre-pill { max-width: none; white-space: normal; }
 
 .detail-progress-card {
   background: var(--glass-fill);

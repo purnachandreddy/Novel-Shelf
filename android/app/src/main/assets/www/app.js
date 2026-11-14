@@ -667,10 +667,17 @@
     }
 
     // Rating
-    const starPill = card.querySelector('.star-rating-pill');
+    const starPill = card.querySelector('.star-rating-pill, .rating-unrated');
     if (starPill) {
-      const starsHtml = renderStarsDisplay(novel.rating || 0);
-      starPill.innerHTML = `${starsHtml}<span class="rating-num">${ratingDisplay}</span>`;
+      if (!novel.rating || novel.rating <= 0) {
+        starPill.className = 'rating-unrated';
+        starPill.textContent = 'Not rated';
+      } else {
+        starPill.className = 'star-rating-pill';
+        const starsHtml = renderStarsDisplay(novel.rating);
+        const ratingDisplay = novel.rating.toFixed(1) + ' ★';
+        starPill.innerHTML = `${starsHtml}<span class="rating-num">${ratingDisplay}</span>`;
+      }
     }
 
     // Genre pill
@@ -807,8 +814,11 @@
   }
 
   function renderCardStarsMarkup(novel) {
-    const ratingDisplay = novel.rating > 0 ? novel.rating.toFixed(1) + ' ★' : '—';
-    const starsHtml = renderStarsDisplay(novel.rating || 0);
+    if (!novel.rating || novel.rating <= 0) {
+      return `<span class="rating-unrated">Not rated</span>`;
+    }
+    const ratingDisplay = novel.rating.toFixed(1) + ' ★';
+    const starsHtml = renderStarsDisplay(novel.rating);
     return `<span class="star-rating-pill">${starsHtml}<span class="rating-num">${ratingDisplay}</span></span>`;
   }
 
@@ -1189,7 +1199,9 @@
     const total = novel.chaptersTotal || 0;
     const percent = total > 0 ? Math.min(100, Math.round((read / total) * 100)) : 0;
     const statusClass = getStatusClass(novel.status);
-    const starsHtml = renderStarsDisplay(novel.rating || 0);
+    const ratingHtml = (novel.rating && novel.rating > 0)
+      ? `<span class="detail-stars">${renderStarsDisplay(novel.rating)}<span class="detail-rating-num">${novel.rating.toFixed(1)}</span></span>`
+      : `<span class="rating-unrated detail-unrated">Not rated</span>`;
 
     let coverHtml;
     if (novel.cover) {
@@ -1231,7 +1243,7 @@
           <p class="detail-author">by ${escHtml(novel.author || 'Unknown Author')}</p>
           <div class="detail-badges-row">
             <span class="status-badge ${statusClass}">${escHtml(novel.status)}</span>
-            <span class="detail-stars">${starsHtml}<span class="detail-rating-num">${novel.rating > 0 ? novel.rating.toFixed(1) : 'Unrated'}</span></span>
+            ${ratingHtml}
             ${novel.genre ? `<span class="genre-pill">${escHtml(novel.genre)}</span>` : ''}
           </div>
           <div class="detail-progress-card">
