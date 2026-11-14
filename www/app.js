@@ -573,33 +573,143 @@
     return filtered;
   }
 
-  function renderLibrary() {
-    novelsContainer.innerHTML = '';
+  function updateCardDom(card, novel) {
+    if (!card || !novel) return;
+    const read = novel.chaptersRead || 0;
+    const total = novel.chaptersTotal || 0;
+    const percent = total > 0 ? Math.min(100, Math.round((read / total) * 100)) : 0;
+    const ratingDisplay = novel.rating > 0 ? novel.rating.toFixed(1) + ' ★' : '—';
+    const statusClass = getStatusClass(novel.status);
 
-    // Hide all states first
+    // Update cover if changed
+    if (card._lastCover !== novel.cover || card._lastTitle !== novel.title || card._lastGenre !== novel.genre) {
+      card._lastCover = novel.cover;
+      card._lastTitle = novel.title;
+      card._lastGenre = novel.genre;
+      const wrap = card.querySelector('.card-cover-wrap');
+      if (wrap) wrap.innerHTML = renderCardCoverMarkup(novel);
+    }
+
+    // Status badge
+    const badge = card.querySelector('.status-badge');
+    if (badge) {
+      badge.className = `status-badge ${statusClass}`;
+      badge.textContent = novel.status || 'Reading';
+    }
+
+    // Title & Author
+    const titleEl = card.querySelector('.card-title');
+    if (titleEl && titleEl.textContent !== novel.title) {
+      titleEl.textContent = novel.title;
+    }
+    const authorEl = card.querySelector('.card-author');
+    const authorText = novel.author || 'Unknown Author';
+    if (authorEl && authorEl.textContent !== authorText) {
+      authorEl.textContent = authorText;
+    }
+
+    // Rating
+    const starPill = card.querySelector('.star-rating-pill');
+    if (starPill) {
+      const starsHtml = renderStarsDisplay(novel.rating || 0);
+      starPill.innerHTML = `${starsHtml}<span class="rating-num">${ratingDisplay}</span>`;
+    }
+
+    // Genre pill
+    let genrePill = card.querySelector('.genre-pill');
+    if (novel.genre) {
+      if (genrePill) {
+        if (genrePill.textContent !== novel.genre) genrePill.textContent = novel.genre;
+      } else {
+        const metaRow = card.querySelector('.card-meta-row');
+        if (metaRow) {
+          const pill = document.createElement('span');
+          pill.className = 'genre-pill';
+          pill.textContent = novel.genre;
+          metaRow.appendChild(pill);
+        }
+      }
+    } else if (genrePill) {
+      genrePill.remove();
+    }
+
+    // Progress
+    const progInfo = card.querySelector('.progress-info');
+    if (progInfo && progInfo.children.length >= 2) {
+      const chText = 'Ch. ' + read + (total ? ' / ' + total : '');
+      const pctText = total ? percent + '%' : '';
+      if (progInfo.children[0].textContent !== chText) progInfo.children[0].textContent = chText;
+      if (progInfo.children[1].textContent !== pctText) progInfo.children[1].textContent = pctText;
+    }
+    const fill = card.querySelector('.progress-fill');
+    if (fill) {
+      fill.style.width = (total ? percent : 0) + '%';
+    }
+
+    // Quick actions source
+    const srcEl = card.querySelector('.card-source-label');
+    if (srcEl && srcEl.textContent !== (novel.source || '')) {
+      srcEl.textContent = novel.source || '';
+    }
+    const quickBtn = card.querySelector('[data-action="quick-add"]');
+    if (quickBtn) {
+      quickBtn.setAttribute('aria-label', `Add 1 chapter to ${novel.title}`);
+    }
+
+    card.setAttribute('aria-label', `${novel.title} by ${authorText}, ${novel.status}`);
+  }
+
+  function renderLibrary() {
     emptyState.style.display = 'none';
     noSearchResults.style.display = 'none';
 
     if (library.length === 0) {
       emptyState.style.display = 'flex';
       novelsContainer.style.display = 'none';
+      novelsContainer.innerHTML = '';
       return;
     }
 
-    novelsContainer.style.display = '';
     const filtered = getFilteredNovels();
 
     if (filtered.length === 0) {
       noSearchResults.style.display = 'flex';
       novelsContainer.style.display = 'none';
+      novelsContainer.innerHTML = '';
       return;
     }
 
     novelsContainer.style.display = '';
+
+    // Keyed reconciliation
+    const existingCards = new Map();
+    for (const child of Array.from(novelsContainer.children)) {
+      if (child.dataset && child.dataset.id) {
+        existingCards.set(child.dataset.id, child);
+      }
+    }
+
+    const activeIds = new Set();
     filtered.forEach((novel, index) => {
-      const card = createNovelCard(novel, index);
-      novelsContainer.appendChild(card);
+      activeIds.add(novel.id);
+      let card = existingCards.get(novel.id);
+      if (card) {
+        updateCardDom(card, novel);
+      } else {
+        card = createNovelCard(novel);
+      }
+
+      const currentAtPos = novelsContainer.children[index];
+      if (currentAtPos !== card) {
+        novelsContainer.insertBefore(card, currentAtPos || null);
+      }
     });
+
+    for (const [id, child] of existingCards.entries()) {
+      if (!activeIds.has(id)) {
+        child.remove();
+      }
+    }
   }
 
   function getStatusClass(status) {
@@ -792,27 +902,12 @@
     }
 
     if (statusChanged) {
-      // Full re-render acceptable when novel completes
       renderLibrary();
     } else {
-      // A7 — update card DOM in-place to avoid list reorder
+      // In-place card update (zero list rebuild, zero scroll jump, no lost focus)
       const card = novelsContainer.querySelector('[data-id="' + id + '"]');
       if (card) {
-        const read2 = novel.chaptersRead || 0;
-        const total2 = novel.chaptersTotal || 0;
-        const pct2 = total2 > 0 ? Math.min(100, Math.round((read2 / total2) * 100)) : 0;
-        const progInfo = card.querySelector('.progress-info');
-        if (progInfo) {
-          progInfo.children[0].textContent = 'Ch. ' + read2 + (total2 ? ' / ' + total2 : '');
-          progInfo.children[1].textContent = total2 ? pct2 + '%' : '';
-        }
-        const fill = card.querySelector('.progress-fill');
-        if (fill) fill.style.width = (total2 ? pct2 : 0) + '%';
-        const badge = card.querySelector('.status-badge');
-        if (badge) {
-          badge.textContent = novel.status;
-          badge.className = 'status-badge ' + getStatusClass(novel.status);
-        }
+        updateCardDom(card, novel);
       } else {
         renderLibrary();
       }
@@ -1700,9 +1795,13 @@
     }
   }
 
+  let _lastTabCountsKey = '';
   function updateTabBadges() {
     const counts = { ALL: library.length, Reading: 0, 'Plan to Read': 0, Completed: 0, 'On Hold': 0, Dropped: 0 };
     library.forEach(n => { if (counts[n.status] !== undefined) counts[n.status]++; });
+    const key = `${counts.ALL}|${counts.Reading}|${counts['Plan to Read']}|${counts.Completed}|${counts['On Hold']}|${counts.Dropped}`;
+    if (key === _lastTabCountsKey) return;
+    _lastTabCountsKey = key;
     document.getElementById('count-all').textContent = counts.ALL;
     document.getElementById('count-reading').textContent = counts.Reading;
     document.getElementById('count-plan').textContent = counts['Plan to Read'];
@@ -1711,6 +1810,7 @@
     document.getElementById('count-dropped').textContent = counts.Dropped;
   }
 
+  let _lastGenreKey = '';
   function updateGenreDropdown() {
     if (!genreFilter) return;
     // A8 — De-duplicate genres case-insensitively, keeping first-seen casing
@@ -1727,11 +1827,15 @@
       }
     });
 
+    const sortedGenres = Array.from(genreMap.values()).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
     const currentVal = (genreFilter.value || 'ALL').trim();
+    const genreKey = sortedGenres.join(';;') + '::' + currentVal;
+    if (genreKey === _lastGenreKey) return;
+    _lastGenreKey = genreKey;
+
     const currentValLower = currentVal.toLowerCase();
     genreFilter.innerHTML = '<option value="ALL">All Genres</option>';
 
-    const sortedGenres = Array.from(genreMap.values()).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
     sortedGenres.forEach(g => {
       const opt = document.createElement('option');
       opt.value = g;
