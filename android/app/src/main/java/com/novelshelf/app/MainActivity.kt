@@ -108,6 +108,24 @@ class MainActivity : AppCompatActivity() {
         fun setCanGoBack(canGoBack: Boolean) {
             canGoBackInJs = canGoBack
         }
+
+        @JavascriptInterface
+        fun haptic(kind: String) {
+            runOnUiThread {
+                val feedback = when (kind) {
+                    "tick" -> android.view.HapticFeedbackConstants.KEYBOARD_TAP
+                    "confirm" -> {
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                            android.view.HapticFeedbackConstants.CONFIRM
+                        } else {
+                            android.view.HapticFeedbackConstants.LONG_PRESS
+                        }
+                    }
+                    else -> android.view.HapticFeedbackConstants.KEYBOARD_TAP
+                }
+                binding.webView.performHapticFeedback(feedback)
+            }
+        }
     }
 
     @SuppressLint("SetJavaScriptEnabled")

@@ -2281,6 +2281,29 @@
     if (btnLoadSampleMenu) btnLoadSampleMenu.addEventListener('click', loadSampleData);
     if (btnLoadSample) btnLoadSample.addEventListener('click', loadSampleData);
 
+    // Reduce Effects Setting Toggle
+    const toggleReduceEffects = document.getElementById('toggle-reduce-effects');
+    if (toggleReduceEffects) {
+      const isCurrentlyReduced = (typeof window.effectsReduced === 'function')
+        ? window.effectsReduced()
+        : document.documentElement.classList.contains('reduced-effects');
+      toggleReduceEffects.checked = isCurrentlyReduced;
+      toggleReduceEffects.addEventListener('change', () => {
+        const isChecked = toggleReduceEffects.checked;
+        try {
+          localStorage.setItem('novelshelf_reduce_effects', String(isChecked));
+        } catch (e) { }
+        if (isChecked) {
+          document.documentElement.classList.add('reduced-effects');
+          document.documentElement.setAttribute('data-reduced-motion', 'true');
+        } else {
+          document.documentElement.classList.remove('reduced-effects');
+          document.documentElement.removeAttribute('data-reduced-motion');
+        }
+        showToast(isChecked ? 'Reduce effects enabled' : 'Full visual effects enabled', 'info');
+      });
+    }
+
     // Search — fix #14: debounce to avoid flickering on every keystroke
     const debouncedRender = debounce(renderLibrary, 150);
     searchInput.addEventListener('input', (e) => {
