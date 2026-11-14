@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>📚 Novel Shelf - Reading Tracker</title>
+  <meta name="description" content="A beautiful, offline-capable novel reading tracker and personal bookshelf for web novels, light novels, and books.">
+  <meta name="theme-color" content="#0b0e14">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <!-- Fonts loaded with display=optional for offline resilience -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Cinzel:wght@600;700&display=optional" rel="stylesheet" media="all">
+  <link rel="icon" type="image/png" href="logo-small.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- App Container -->
+  <div id="app" class="app-container">
+    
+    <!-- Shelf View Screen -->
+    <div id="view-shelf" class="view-screen">
+      <!-- Top Header -->
+      <header class="app-header">
+      <div class="header-main">
+        <div class="brand">
+          <img src="logo-small.png" class="brand-icon" alt="Novel Shelf" width="34" height="34">
+          <div class="brand-text">
+            <h1 class="brand-title">Novel Shelf</h1>
+            <span class="brand-subtitle">Reading Tracker</span>
+          </div>
+        </div>
+
+        <div class="header-actions">
+          <div class="view-toggle">
+            <button id="view-grid-btn" class="toggle-btn active" title="Shelf Grid View" aria-label="Grid View">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
+            </button>
+            <button id="view-list-btn" class="toggle-btn" title="Detailed List View" aria-label="List View">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            </button>
+          </div>
+          <button id="btn-stats-toggle" class="icon-btn" title="Reading Statistics" aria-label="Reading Statistics">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+          </button>
+          <button id="btn-backup-menu" class="icon-btn" title="Data Backup & Restore" aria-label="Backup and Restore">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Search Toolbar -->
+      <div class="toolbar">
+        <div class="search-box">
+          <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" id="search-input" placeholder="Search by title, author, genre, tag..." autocomplete="off">
+          <button id="btn-clear-search" class="clear-btn" style="display:none;" aria-label="Clear search">✕</button>
+        </div>
+        <!-- Fix #9 — sort & genre filter row -->
+        <div class="filter-row">
+          <select id="sort-filter" class="filter-select" aria-label="Sort order">
+            <option value="updated-desc">Recently Updated</option>
+            <option value="rating-desc">Highest Rated</option>
+            <option value="title-asc">Title A–Z</option>
+            <option value="progress-desc">Most Progress</option>
+            <option value="chapters-desc">Most Chapters</option>
+          </select>
+          <select id="genre-filter" class="filter-select" aria-label="Filter by genre">
+            <option value="ALL">All Genres</option>
+          </select>
+          <button id="btn-add-novel-top" class="btn btn-primary btn-sm" aria-label="Add novel">＋ Add</button>
+        </div>
+      </div>
+
+      <!-- Status Tabs Bar -->
+      <nav class="status-tabs" id="status-tabs" aria-label="Reading Statuses">
+        <button class="status-tab active" data-status="ALL">
+          All <span class="tab-badge" id="count-all">0</span>
+        </button>
+        <button class="status-tab" data-status="Reading">
+          Reading <span class="tab-badge" id="count-reading">0</span>
+        </button>
+        <button class="status-tab" data-status="Plan to Read">
+          Plan to Read <span class="tab-badge" id="count-plan">0</span>
+        </button>
+        <button class="status-tab" data-status="Completed">
+          Completed <span class="tab-badge" id="count-completed">0</span>
+        </button>
+        <button class="status-tab" data-status="On Hold">
+          On Hold <span class="tab-badge" id="count-onhold">0</span>
+        </button>
+        <button class="status-tab" data-status="Dropped">
+          Dropped <span class="tab-badge" id="count-dropped">0</span>
+        </button>
+      </nav>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="main-content" id="main-content">
+      
+
+
+      <!-- Active Shelf Novels Container -->
+      <section class="shelf-section">
+        <!-- Novels Grid/List Container -->
+        <div id="novels-container" class="novels-grid"></div>
+
+        <!-- Empty State (Exactly as in Novel Shelf.md) -->
+        <div id="empty-state" class="empty-state" style="display:none;">
+          <div class="empty-illustration">
+            <span class="empty-emoji">📚</span>
+            <div class="empty-glow"></div>
+          </div>
+          <h2 class="empty-title">No novels here yet.</h2>
+          <p class="empty-subtitle">Tap <span class="highlight-plus">＋</span> to add one.</p>
+          <div class="empty-actions">
+            <button id="btn-add-novel-empty" class="btn btn-primary">
+              <span>＋ Add Novel</span>
+            </button>
+            <button id="btn-load-sample" class="btn btn-secondary">
+              <span>Load Sample Library</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Search / Filter Empty State -->
+        <div id="no-search-results" class="empty-state" style="display:none;">
+          <div class="empty-illustration">🔍</div>
+          <h3 class="empty-title">No matching novels found</h3>
+          <p class="empty-subtitle">Try adjusting your search terms or filter criteria.</p>
+          <button id="btn-reset-filters" class="btn btn-secondary">Reset Filters</button>
+        </div>
+      </section>
+    </main>
+    </div><!-- /#view-shelf -->
+
+    <!-- Novel Details Full-Page Tab View -->
+    <div id="view-novel-details" class="view-screen details-page-view" style="display:none;">
+      <!-- Details Header / Top Bar -->
+      <header class="details-topbar">
+        <button id="btn-back-shelf" class="btn-back" aria-label="Back to Shelf">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          <span>Shelf</span>
+        </button>
+
+        <h2 id="detail-header-title" class="details-header-title">Novel Details</h2>
+
+        <div class="details-header-actions">
+          <button id="btn-detail-edit" class="icon-btn" title="Edit Novel" aria-label="Edit Novel">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button id="btn-detail-delete" class="icon-btn icon-btn-danger" title="Delete Novel" aria-label="Delete Novel">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Details Page Body -->
+      <div class="details-page-body">
+        <div id="detail-body-content" class="details-content-container">
+          <!-- Populated by JavaScript -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Reading Statistics Full-Page Tab View -->
+    <div id="view-stats" class="view-screen details-page-view" style="display:none;">
+      <header class="details-topbar">
+        <button id="btn-back-stats" class="btn-back" aria-label="Back to Shelf">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          <span>Shelf</span>
+        </button>
+        <h2 class="details-header-title">Reading Statistics</h2>
+        <div style="width: 48px;"></div>
+      </header>
+
+      <div class="details-page-body">
+        <div class="stats-page-container">
+
+          <!-- Time Filter (Applies to completed stats) -->
+          <div class="stats-filter-bar">
+            <span class="stats-filter-label">Filter:</span>
+            <div class="stats-time-pills" id="stats-time-pills">
+              <button type="button" class="time-pill-btn active" data-filter="all">All Time</button>
+              <button type="button" class="time-pill-btn" data-filter="year">This Year</button>
+              <button type="button" class="time-pill-btn" data-filter="month">This Month</button>
+            </div>
+          </div>
+
+          <!-- Top Stat Cards (4-grid) -->
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-card-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+              </div>
+              <span class="stat-num" id="stat-total-novels">0</span>
+              <span class="stat-label">Total Novels</span>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-card-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+              </div>
+              <span class="stat-num" id="stat-novels-finished">0</span>
+              <span class="stat-label">Completed</span>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-card-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              </div>
+              <span class="stat-num" id="stat-avg-rating">—</span>
+              <span class="stat-label">Average Rating</span>
+              <span class="stat-subtext" id="stat-avg-rating-sub">from 0 ratings</span>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-card-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-6"/></svg>
+              </div>
+              <span class="stat-num" id="stat-chapters-read">0</span>
+              <span class="stat-label">Chapters Read</span>
+              <span class="stat-subtext" id="stat-chapters-sub">0 completed • 0 reading</span>
+            </div>
+          </div>
+
+          <!-- Pace & Completion Speed Section (Filtered) -->
+          <div class="stats-section-card" id="section-pace" style="display:none;">
+            <div class="stats-card-heading">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <h3>Reading Pace &amp; Speed</h3>
+            </div>
+            <div class="pace-stats-grid">
+              <div class="pace-item">
+                <span class="pace-val" id="stat-avg-days">—</span>
+                <span class="pace-label">Avg. Days to Finish</span>
+              </div>
+              <div class="pace-item">
+                <span class="pace-val" id="stat-avg-pace">—</span>
+                <span class="pace-label">Avg. Chapters / Day</span>
+                <span class="stat-subtext" id="stat-avg-pace-sub" style="margin-top:4px;"></span>
+              </div>
+            </div>
+            <div class="pace-records" id="pace-records">
+              <!-- Fastest & Longest read -->
+            </div>
+          </div>
+
+          <!-- Monthly Completions Chart -->
+          <div class="stats-section-card" id="section-monthly" style="display:none;">
+            <div class="stats-card-heading">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <h3>Novels Completed (Past 6 Months)</h3>
+            </div>
+            <div class="monthly-bar-chart" id="monthly-bar-chart"></div>
+          </div>
+
+          <!-- In-Progress Novels -->
+          <div class="stats-section-card" id="section-in-progress" style="display:none;">
+            <div class="stats-card-heading">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 8 14"/></svg>
+              <h3>Currently Reading</h3>
+            </div>
+            <div class="reading-progress-list" id="reading-progress-list"></div>
+          </div>
+
+          <!-- Genre Breakdown (All Time) -->
+          <div class="stats-section-card" id="section-genres" style="display:none;">
+            <div class="stats-card-heading">
+              <div class="stats-heading-with-tag">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                <h3>Genre Breakdown</h3>
+              </div>
+              <span class="all-time-tag">All time</span>
+            </div>
+            <div class="genre-breakdown-list" id="genre-breakdown-list"></div>
+            <button type="button" id="btn-toggle-genres" class="btn-toggle-genres" style="display:none;">Show all</button>
+          </div>
+
+          <!-- Dropped Analysis (All Time) -->
+          <div class="stats-section-card" id="section-dropped" style="display:none;">
+            <div class="stats-card-heading">
+              <div class="stats-heading-with-tag">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                <h3>Dropped Analysis</h3>
+              </div>
+              <span class="all-time-tag">All time</span>
+            </div>
+            <div class="dropped-stats-grid">
+              <div class="dropped-item" id="item-drop-chapter">
+                <span class="dropped-val" id="stat-drop-chapter">—</span>
+                <span class="dropped-label">Avg. Drop Chapter</span>
+              </div>
+              <div class="dropped-item" id="item-drop-pct">
+                <span class="dropped-val" id="stat-drop-pct">—</span>
+                <span class="dropped-label">Avg. Progress %</span>
+              </div>
+              <div class="dropped-item" id="item-completion-rate">
+                <span class="dropped-val" id="stat-completion-rate">—</span>
+                <span class="dropped-label">Completion Rate</span>
+              </div>
+            </div>
+            <div class="dropped-insight" id="dropped-insight"></div>
+          </div>
+
+          <!-- Top Lists (All Time) -->
+          <div class="stats-section-card" id="section-top-lists" style="display:none;">
+            <div class="stats-card-heading">
+              <div class="stats-heading-with-tag">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                <h3>Top Lists</h3>
+              </div>
+              <span class="all-time-tag">All time</span>
+            </div>
+            <div class="top-lists-container">
+              <!-- Highest Rated -->
+              <div class="top-list-block" id="block-highest-rated" style="display:none;">
+                <h4 class="top-list-title">Highest Rated</h4>
+                <div class="top-list-items" id="list-highest-rated"></div>
+              </div>
+              <!-- Longest Completed -->
+              <div class="top-list-block" id="block-longest-completed" style="display:none;">
+                <h4 class="top-list-title">Longest Completed</h4>
+                <div class="top-list-items" id="list-longest-completed"></div>
+              </div>
+              <!-- Most-Read Author -->
+              <div class="top-list-block" id="block-most-read-author" style="display:none;">
+                <h4 class="top-list-title">Most-Read Author</h4>
+                <div class="most-read-author-tile" id="tile-most-read-author"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Status Breakdown & Rating Distribution -->
+          <div class="stats-details">
+            <div class="stats-chart-block">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <h3 style="margin:0;">Status Breakdown</h3>
+                <span class="all-time-tag">All time</span>
+              </div>
+              <div class="progress-bar-stacked" id="stacked-status-bar"></div>
+              <div class="status-legend" id="status-legend"></div>
+            </div>
+
+            <div class="stats-chart-block">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <h3 style="margin:0;">Rating Distribution</h3>
+                <span class="all-time-tag">All time</span>
+              </div>
+              <div class="rating-histogram" id="rating-histogram"></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Backup & Restore Full-Page Tab View -->
+    <div id="view-backup" class="view-screen details-page-view" style="display:none;">
+      <header class="details-topbar">
+        <button id="btn-back-backup" class="btn-back" aria-label="Back to Shelf">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          <span>Shelf</span>
+        </button>
+        <h2 class="details-header-title">Backup & Restore</h2>
+        <div style="width: 48px;"></div>
+      </header>
+
+      <div class="details-page-body">
+        <div class="backup-tab-container">
+          <p class="backup-desc">All your novels and reading history are stored securely offline on this device. You can export a backup file or restore from one anytime.</p>
+
+          <div class="backup-card">
+            <div class="backup-card-info">
+              <h3>Export Backup</h3>
+              <p>Download a JSON backup of your novel library or export as a formatted text summary.</p>
+            </div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <button id="btn-export-json" class="btn btn-primary">
+                <span>Export JSON</span>
+              </button>
+              <button id="btn-export-txt" class="btn btn-secondary">
+                <span>Export TXT</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="backup-card">
+            <div class="backup-card-info">
+              <h3>Restore Backup</h3>
+              <p>Upload a previously exported JSON backup file to restore your novels.</p>
+            </div>
+            <label class="btn btn-secondary file-picker-label">
+              <span>Choose Backup File</span>
+              <input type="file" id="import-json-file" accept=".json" style="display:none;">
+            </label>
+          </div>
+
+          <div class="backup-card">
+            <div class="backup-card-info">
+              <h3>Demo Library</h3>
+              <p>Load 5 popular sample web novels with covers, ratings, and tags.</p>
+            </div>
+            <button id="btn-load-sample-menu" class="btn btn-secondary">
+              <span>Load Sample Novels</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add / Edit Novel Full-Page Tab View -->
+    <div id="modal-novel-form" class="view-screen details-page-view" style="display:none;">
+      <header class="details-topbar">
+        <button id="btn-close-form" class="btn-back" type="button" aria-label="Back">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          <span>Back</span>
+        </button>
+        <h2 id="modal-form-title" class="details-header-title">Add novel</h2>
+        <div style="width: 48px;"></div>
+      </header>
+
+      <div class="details-page-body form-page-container">
+        <form id="novel-form" class="fullpage-form" novalidate>
+          <input type="hidden" id="form-novel-id">
+
+          <!-- Cover Photo Section -->
+          <div class="form-group cover-upload-group">
+            <label class="form-label">Cover photo</label>
+            <div class="cover-upload-container">
+              <div class="cover-preview-wrapper" id="cover-preview-box">
+                <img id="cover-img-preview" alt="Cover preview" style="display:none;">
+                <div id="cover-placeholder" class="cover-placeholder">
+                  <span class="cover-plus-icon">＋</span>
+                  <span class="cover-text">Cover<br>photo</span>
+                </div>
+                <button type="button" id="btn-remove-cover" class="cover-remove-btn" style="display:none;" title="Remove cover">✕</button>
+              </div>
+
+              <div class="cover-options">
+                <label class="btn btn-secondary btn-sm file-picker-label">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+                  Choose File
+                  <input type="file" id="cover-file-input" accept="image/*" style="display:none;">
+                </label>
+                <div class="cover-url-input-wrap">
+                  <input type="url" id="cover-url-input" placeholder="Or paste image URL..." autocomplete="off">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Title & Author -->
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="form-title" class="form-label required">Title</label>
+              <input type="text" id="form-title" placeholder="e.g. Lord of the Mysteries" required>
+            </div>
+            <div class="form-group flex-1">
+              <label for="form-author" class="form-label">Author</label>
+              <input type="text" id="form-author" placeholder="e.g. Cuttlefish That Loves Diving">
+            </div>
+          </div>
+
+          <!-- Status & Reading Progress -->
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="form-status" class="form-label">Reading Status</label>
+              <select id="form-status" style="display:none;">
+                <option value="Reading">Reading</option>
+                <option value="Plan to Read">Plan to Read</option>
+                <option value="Completed">Completed</option>
+                <option value="On Hold">On Hold</option>
+                <option value="Dropped">Dropped</option>
+              </select>
+              <div class="status-quick-pills" id="status-quick-pills">
+                <button type="button" class="status-pill-btn active" data-status="Reading">Reading</button>
+                <button type="button" class="status-pill-btn" data-status="Plan to Read">Plan to Read</button>
+                <button type="button" class="status-pill-btn" data-status="Completed">Completed</button>
+                <button type="button" class="status-pill-btn" data-status="On Hold">On Hold</button>
+                <button type="button" class="status-pill-btn" data-status="Dropped">Dropped</button>
+              </div>
+            </div>
+
+            <div class="form-group flex-1">
+              <label class="form-label">Chapters progress</label>
+              <div class="chapters-row">
+                <div class="chapter-input-wrap">
+                  <label for="form-chapters-read" class="sub-label">Read</label>
+                  <div class="stepper-input">
+                    <input type="number" id="form-chapters-read" min="0" value="0" placeholder="0">
+                  </div>
+                </div>
+                <span class="chapter-divider">/</span>
+                <div class="chapter-input-wrap">
+                  <label for="form-chapters-total" class="sub-label">Total</label>
+                  <input type="number" id="form-chapters-total" min="0" placeholder="Total (optional)">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Rating with Half-Stars -->
+          <div class="form-group">
+            <div class="rating-label-row">
+              <label class="form-label">My rating <span class="rating-hint">(tap a star’s left half for .5)</span></label>
+              <span id="rating-value-display" class="rating-badge">0.0 ★</span>
+            </div>
+            
+            <div class="interactive-star-rating" id="star-rating-control" role="radiogroup" aria-label="Novel rating">
+              <!-- 5 Stars with left/right halves -->
+              <div class="star-wrapper" data-star="1">
+                <span class="star-half left" data-val="0.5" title="0.5 Stars"></span>
+                <span class="star-half right" data-val="1.0" title="1 Star"></span>
+                <span class="star-display">★</span>
+              </div>
+              <div class="star-wrapper" data-star="2">
+                <span class="star-half left" data-val="1.5" title="1.5 Stars"></span>
+                <span class="star-half right" data-val="2.0" title="2 Stars"></span>
+                <span class="star-display">★</span>
+              </div>
+              <div class="star-wrapper" data-star="3">
+                <span class="star-half left" data-val="2.5" title="2.5 Stars"></span>
+                <span class="star-half right" data-val="3.0" title="3 Stars"></span>
+                <span class="star-display">★</span>
+              </div>
+              <div class="star-wrapper" data-star="4">
+                <span class="star-half left" data-val="3.5" title="3.5 Stars"></span>
+                <span class="star-half right" data-val="4.0" title="4 Stars"></span>
+                <span class="star-display">★</span>
+              </div>
+              <div class="star-wrapper" data-star="5">
+                <span class="star-half left" data-val="4.5" title="4.5 Stars"></span>
+                <span class="star-half right" data-val="5.0" title="5 Stars"></span>
+                <span class="star-display">★</span>
+              </div>
+              <button type="button" id="btn-clear-rating" class="btn-clear-rating" title="Clear rating">Clear</button>
+            </div>
+            <input type="hidden" id="form-rating" value="0">
+          </div>
+
+          <!-- Started & Finished Dates -->
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="form-started" class="form-label">Started</label>
+              <div class="date-input-wrap">
+                <input type="date" id="form-started">
+                <button type="button" class="btn-quick-date" data-target="form-started">Today</button>
+              </div>
+            </div>
+            <div class="form-group flex-1">
+              <label for="form-finished" class="form-label">Finished</label>
+              <div class="date-input-wrap">
+                <input type="date" id="form-finished">
+                <button type="button" class="btn-quick-date" data-target="form-finished">Today</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Source & Link -->
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="form-source" class="form-label">Source</label>
+              <input type="text" id="form-source" placeholder="e.g. Royal Road, Webnovel, Novel buddy" autocomplete="off">
+            </div>
+
+            <div class="form-group flex-1">
+              <label for="form-link" class="form-label">Link</label>
+              <input type="url" id="form-link" placeholder="https://...">
+            </div>
+          </div>
+
+          <!-- Genre & Quick Pills -->
+          <div class="form-group">
+            <label for="form-genre" class="form-label">Genre</label>
+            <input type="text" id="form-genre" placeholder="e.g. Fantasy, LitRPG, Xianxia">
+            <div class="quick-pills" id="genre-quick-pills">
+              <button type="button" class="pill-btn" data-genre="Fantasy">Fantasy</button>
+              <button type="button" class="pill-btn" data-genre="Sci-Fi">Sci-Fi</button>
+              <button type="button" class="pill-btn" data-genre="LitRPG">LitRPG</button>
+              <button type="button" class="pill-btn" data-genre="Xianxia">Xianxia</button>
+              <button type="button" class="pill-btn" data-genre="Romance">Romance</button>
+              <button type="button" class="pill-btn" data-genre="Mystery">Mystery</button>
+              <button type="button" class="pill-btn" data-genre="Action">Action</button>
+              <button type="button" class="pill-btn" data-genre="Slice of Life">Slice of Life</button>
+            </div>
+          </div>
+
+          <!-- Tags -->
+          <div class="form-group">
+            <label for="form-tags" class="form-label">Tags (comma separated)</label>
+            <input type="text" id="form-tags" placeholder="e.g. Magic, Time Loop, Overpowered MC, Kingdom Building">
+          </div>
+
+          <!-- Notes -->
+          <div class="form-group">
+            <label for="form-notes" class="form-label">Notes</label>
+            <textarea id="form-notes" rows="4" placeholder="Your review, thoughts, favorite quotes, or bookmark notes..."></textarea>
+          </div>
+
+          <div class="form-actions-bottom" style="display:flex; gap:12px; margin-top:24px; padding-bottom:30px;">
+            <button type="button" id="btn-cancel-form" class="btn btn-secondary flex-1">Cancel</button>
+            <button type="submit" id="btn-save-novel" class="btn btn-primary flex-1">
+              <span>Save Novel</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+
+
+
+
+    <!-- Custom Confirm Dialog (replaces native confirm() for Android) -->
+    <div id="confirm-dialog" class="modal-backdrop" style="display:none;">
+      <div class="confirm-card" role="alertdialog" aria-modal="true" aria-labelledby="confirm-message">
+        <p id="confirm-message" class="confirm-message"></p>
+        <div class="confirm-buttons">
+          <button id="btn-confirm-no" class="btn btn-secondary">Cancel</button>
+          <button id="btn-confirm-yes" class="btn btn-danger">Confirm</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  </div>
+
+  <script src="stats-calculator.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

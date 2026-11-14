@@ -1,0 +1,2297 @@
+/**
+ * 📚 Novel Shelf - Core Application Logic
+ * Fixes: touch star-rating, render bugs, cover handling, custom delete dialog,
+ *        Android-safe export, offline fonts, 120Hz animation, all logic errors.
+ */
+
+(function () {
+  'use strict';
+
+  // --- Storage & State ---
+  const STORAGE_KEY = 'novelshelf_library_v1';
+  const VIEW_PREF_KEY = 'novelshelf_view_mode';
+
+  // Fix #5 — local date string (avoids UTC-day-off-by-one in IST midnight)
+  function localDateString(d) {
+    const dt = d || new Date();
+    const y = dt.getFullYear();
+    const m = String(dt.getMonth() + 1).padStart(2, '0');
+    const day = String(dt.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
+  let library = [];
+  let activeStatusFilter = 'ALL';
+  let activeGenreFilter = 'ALL';
+  let activeSort = 'updated-desc';
+  let searchQuery = '';
+  let currentView = 'grid'; // loaded safely in loadLibrary
+  let currentRating = 0;
+  let viewingNovelId = null;
+  let ratingTouchActive = false;
+
+  // Stats time filter state ('all' | 'year' | 'month')
+  let statsTimeFilter = 'all';
+
+  // A1 — track whether the edit form was opened from details view
+  let formOpenedFromDetails = false;
+
+  // A9 — cancel function for the active confirm dialog
+  let activeConfirmCancel = null;
+
+  // Fix #14 — track which card IDs have already been animated
+  const _animatedCardIds = new Set();
+
+  // Fix #14 — debounce helper
+  function debounce(fn, ms) {
+    let t;
+    return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+  }
+
+  // A12 — URL normalizer
+  function normalizeUrl(s) {
+    s = (s || '').trim();
+    if (!s) return '';
+    if (!/^[a-z][a-z0-9+.-]*:/i.test(s)) s = 'https://' + s;
+    return /^https?:\/\//i.test(s) ? s : '';
+  }
+
+  // --- Sample Dataset ---
+  const SAMPLE_NOVELS = [
+    {
+      id: 'novel_sample_1',
+      title: 'Lord of the Mysteries',
+      author: 'Cuttlefish That Loves Diving',
+      cover: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=400&q=80',
+      status: 'Reading',
+      chaptersRead: 560,
+      chaptersTotal: 1432,
+      rating: 5.0,
+      started: '2024-02-10',
+      finished: '',
+      source: 'Webnovel',
+      link: 'https://www.webnovel.com',
+      genre: 'Fantasy',
+      tags: ['Steampunk', 'Mystery', 'Tarot Club', 'Gods', 'Potion Progression'],
+      notes: 'Masterpiece of progression fantasy and Victorian Eldritch mystery. The 22 potion pathways and fool sequence are unmatched.',
+      createdAt: Date.now() - 1000 * 60 * 60 * 24 * 30,
+      updatedAt: Date.now() - 1000 * 60 * 60 * 2
+    },
+    {
+      id: 'novel_sample_2',
+      title: "Omniscient Reader's Viewpoint",
+      author: 'Sing Shong',
+      cover: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=400&q=80',
+      status: 'Completed',
+      chaptersRead: 551,
+      chaptersTotal: 551,
+      rating: 4.5,
+      started: '2023-09-01',
+      finished: '2023-12-15',
+      source: 'Webnovel',
+      link: 'https://www.webnovel.com',
+      genre: 'LitRPG',
+      tags: ['Apocalypse', 'Constellations', 'Fourth Wall', 'Doomsday'],
+      notes: "Kim Dokja only reader of a failed webnovel when it becomes reality. The ending chapters (51% vs 49%) are emotionally unforgettable.",
+      createdAt: Date.now() - 1000 * 60 * 60 * 24 * 90,
+      updatedAt: Date.now() - 1000 * 60 * 60 * 24 * 10
+    },
+    {
+      id: 'novel_sample_3',
+      title: 'Shadow Slave',
+      author: 'Guiltythree',
+      cover: 'https://images.unsplash.com/photo-1516979187457-637abb4f9353?auto=format&fit=crop&w=400&q=80',
+      status: 'Reading',
+      chaptersRead: 1120,
+      chaptersTotal: 1980,
+      rating: 4.5,
+      started: '2024-01-05',
+      finished: '',
+      source: 'Webnovel',
+      link: 'https://www.webnovel.com',
+      genre: 'Dark Fantasy',
+      tags: ['Nightmare Spell', 'Sunny', 'Survival', 'Fated', 'Memories'],
+      notes: 'Sunny and Nephis dynamic is brilliant. The Forgotten Shore arc was peak tension.',
+      createdAt: Date.now() - 1000 * 60 * 60 * 24 * 45,
+      updatedAt: Date.now() - 1000 * 60 * 60 * 5
+    },
+    {
+      id: 'novel_sample_4',
+      title: 'Mother of Learning',
+      author: 'Domagoj Kurmaic (nobody103)',
+      cover: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?auto=format&fit=crop&w=400&q=80',
+      status: 'Completed',
+      chaptersRead: 108,
+      chaptersTotal: 108,
+      rating: 5.0,
+      started: '2023-06-12',
+      finished: '2023-08-01',
+      source: 'Royal Road',
+      link: 'https://www.royalroad.com',
+      genre: 'Fantasy',
+      tags: ['Time Loop', 'Magic Academy', 'Mind Magic', 'Zorian', 'Invasion'],
+      notes: 'One of the best executed time loop stories in fiction. Incredible magic discipline and pacing.',
+      createdAt: Date.now() - 1000 * 60 * 60 * 24 * 120,
+      updatedAt: Date.now() - 1000 * 60 * 60 * 24 * 40
+    },
+    {
+      id: 'novel_sample_5',
+      title: 'The Beginning After The End',
+      author: 'TurtleMe',
+      cover: 'https://images.unsplash.com/photo-1532012164546-f432f2e3777f?auto=format&fit=crop&w=400&q=80',
+      status: 'On Hold',
+      chaptersRead: 420,
+      chaptersTotal: 500,
+      rating: 4.0,
+      started: '2023-11-20',
+      finished: '',
+      source: 'Tapas',
+      link: 'https://tapas.io',
+      genre: 'Action',
+      tags: ['Reincarnation', 'Mana Core', 'Dragons', 'War', 'Arthur Leywin'],
+      notes: 'King Grey reincarnates as Arthur. Great early academy arc, darker war tone in later volumes.',
+      createdAt: Date.now() - 1000 * 60 * 60 * 24 * 60,
+      updatedAt: Date.now() - 1000 * 60 * 60 * 24 * 15
+    }
+  ];
+
+  // --- DOM Elements ---
+  const novelsContainer = document.getElementById('novels-container');
+  const emptyState = document.getElementById('empty-state');
+  const noSearchResults = document.getElementById('no-search-results');
+  const searchInput = document.getElementById('search-input');
+  const btnClearSearch = document.getElementById('btn-clear-search');
+  const genreFilter = document.getElementById('genre-filter');
+  const sortFilter = document.getElementById('sort-filter');
+  const statusTabs = document.getElementById('status-tabs');
+  const viewGridBtn = document.getElementById('view-grid-btn');
+  const viewListBtn = document.getElementById('view-list-btn');
+
+  // Stats Screen & View
+  const viewStats = document.getElementById('view-stats');
+  const btnStatsToggle = document.getElementById('btn-stats-toggle');
+  const btnBackStats = document.getElementById('btn-back-stats');
+  const statTotalNovels = document.getElementById('stat-total-novels');
+  const statChaptersRead = document.getElementById('stat-chapters-read');
+  const statChaptersSub = document.getElementById('stat-chapters-sub');
+  const statNovelsFinished = document.getElementById('stat-novels-finished');
+  const statAvgRating = document.getElementById('stat-avg-rating');
+  const statAvgRatingSub = document.getElementById('stat-avg-rating-sub');
+  const stackedStatusBar = document.getElementById('stacked-status-bar');
+  const statusLegend = document.getElementById('status-legend');
+  const ratingHistogram = document.getElementById('rating-histogram');
+  const statsTimePills = document.getElementById('stats-time-pills');
+  const sectionPace = document.getElementById('section-pace');
+  const statAvgDays = document.getElementById('stat-avg-days');
+  const statAvgPace = document.getElementById('stat-avg-pace');
+  const statAvgPaceSub = document.getElementById('stat-avg-pace-sub');
+  const paceRecords = document.getElementById('pace-records');
+  const sectionMonthly = document.getElementById('section-monthly');
+  const monthlyBarChart = document.getElementById('monthly-bar-chart');
+  const sectionInProgress = document.getElementById('section-in-progress');
+  const readingProgressList = document.getElementById('reading-progress-list');
+  const sectionGenres = document.getElementById('section-genres');
+  const genreBreakdownList = document.getElementById('genre-breakdown-list');
+  const btnToggleGenres = document.getElementById('btn-toggle-genres');
+  const sectionDropped = document.getElementById('section-dropped');
+  const itemDropChapter = document.getElementById('item-drop-chapter');
+  const statDropChapter = document.getElementById('stat-drop-chapter');
+  const itemDropPct = document.getElementById('item-drop-pct');
+  const statDropPct = document.getElementById('stat-drop-pct');
+  const itemCompletionRate = document.getElementById('item-completion-rate');
+  const statCompletionRate = document.getElementById('stat-completion-rate');
+  const droppedInsight = document.getElementById('dropped-insight');
+  const sectionTopLists = document.getElementById('section-top-lists');
+  const blockHighestRated = document.getElementById('block-highest-rated');
+  const listHighestRated = document.getElementById('list-highest-rated');
+  const blockLongestCompleted = document.getElementById('block-longest-completed');
+  const listLongestCompleted = document.getElementById('list-longest-completed');
+  const blockMostReadAuthor = document.getElementById('block-most-read-author');
+  const tileMostReadAuthor = document.getElementById('tile-most-read-author');
+  let genresExpanded = false;
+
+  // Form & Modals
+  const modalNovelForm = document.getElementById('modal-novel-form');
+  const novelForm = document.getElementById('novel-form');
+  const modalFormTitle = document.getElementById('modal-form-title');
+  const formNovelId = document.getElementById('form-novel-id');
+  const formTitle = document.getElementById('form-title');
+  const formAuthor = document.getElementById('form-author');
+  const formStatus = document.getElementById('form-status');
+  const formChaptersRead = document.getElementById('form-chapters-read');
+  const formChaptersTotal = document.getElementById('form-chapters-total');
+  const formRating = document.getElementById('form-rating');
+  const ratingValueDisplay = document.getElementById('rating-value-display');
+  const starRatingControl = document.getElementById('star-rating-control');
+  const btnClearRating = document.getElementById('btn-clear-rating');
+  const formStarted = document.getElementById('form-started');
+  const formFinished = document.getElementById('form-finished');
+  const formSource = document.getElementById('form-source');
+  const formLink = document.getElementById('form-link');
+  const formGenre = document.getElementById('form-genre');
+  const formTags = document.getElementById('form-tags');
+  const formNotes = document.getElementById('form-notes');
+  const coverFileInput = document.getElementById('cover-file-input');
+  const coverUrlInput = document.getElementById('cover-url-input');
+  const coverImgPreview = document.getElementById('cover-img-preview');
+  const coverPlaceholder = document.getElementById('cover-placeholder');
+  const btnRemoveCover = document.getElementById('btn-remove-cover');
+  const coverPreviewBox = document.getElementById('cover-preview-box');
+
+  // Details Screen & Shelf Screen
+  const viewShelf = document.getElementById('view-shelf');
+  const viewNovelDetails = document.getElementById('view-novel-details');
+  const detailHeaderTitle = document.getElementById('detail-header-title');
+  const detailBodyContent = document.getElementById('detail-body-content');
+  const btnBackShelf = document.getElementById('btn-back-shelf');
+  const btnDetailEdit = document.getElementById('btn-detail-edit');
+  const btnDetailDelete = document.getElementById('btn-detail-delete');
+
+  // Backup & Restore Screen & View
+  const viewBackup = document.getElementById('view-backup');
+  const btnBackupMenu = document.getElementById('btn-backup-menu');
+  const btnBackBackup = document.getElementById('btn-back-backup');
+  const btnExportJson = document.getElementById('btn-export-json');
+  const btnExportTxt = document.getElementById('btn-export-txt');
+  const importJsonFile = document.getElementById('import-json-file');
+  const btnLoadSampleMenu = document.getElementById('btn-load-sample-menu');
+
+  // Confirm Dialog
+  const confirmDialog = document.getElementById('confirm-dialog');
+  const confirmMessage = document.getElementById('confirm-message');
+  const btnConfirmYes = document.getElementById('btn-confirm-yes');
+  const btnConfirmNo = document.getElementById('btn-confirm-no');
+
+  // Misc
+  const btnAddNovelTop = document.getElementById('btn-add-novel-top');
+  const btnAddNovelEmpty = document.getElementById('btn-add-novel-empty');
+  const btnLoadSample = document.getElementById('btn-load-sample');
+  const btnCloseForm = document.getElementById('btn-close-form');
+  const btnCancelForm = document.getElementById('btn-cancel-form');
+  const btnResetFilters = document.getElementById('btn-reset-filters');
+  const toastContainer = document.getElementById('toast-container');
+
+  // --- Custom Confirm Dialog (2-button: yes / no) ---
+  // A9 — guard against two dialogs open at once; expose cancel handle for popstate
+  function showConfirm(message, yesLabel = 'Delete', noLabel = 'Cancel') {
+    if (confirmDialog.style.display === 'flex') return Promise.resolve(false);
+    return new Promise((resolve) => {
+      confirmMessage.textContent = message;
+      btnConfirmYes.textContent = yesLabel;
+      btnConfirmNo.textContent = noLabel;
+      confirmDialog.style.display = 'flex';
+
+      const finish = (val) => {
+        activeConfirmCancel = null;
+        confirmDialog.style.display = 'none';
+        btnConfirmYes.removeEventListener('click', onYes);
+        btnConfirmNo.removeEventListener('click', onNo);
+        resolve(val);
+      };
+      const onYes = () => finish(true);
+      const onNo = () => finish(false);
+      btnConfirmYes.addEventListener('click', onYes);
+      btnConfirmNo.addEventListener('click', onNo);
+      activeConfirmCancel = () => finish(false);
+    });
+  }
+
+  // Fix #4 — 3-button import dialog: Merge / Replace / Cancel
+  // Returns 'replace', 'merge', or 'cancel'
+  // A9 — guard against two dialogs; expose cancel handle
+  function showImportChoiceDialog(message) {
+    if (confirmDialog.style.display === 'flex') return Promise.resolve('cancel');
+    return new Promise((resolve) => {
+      confirmMessage.textContent = message;
+      btnConfirmYes.textContent = 'Replace';
+      btnConfirmNo.textContent = 'Cancel';
+
+      const btnMerge = document.createElement('button');
+      btnMerge.className = 'btn btn-secondary';
+      btnMerge.textContent = 'Merge';
+      btnConfirmYes.parentNode.insertBefore(btnMerge, btnConfirmYes);
+
+      confirmDialog.style.display = 'flex';
+
+      const cleanup = (val) => {
+        activeConfirmCancel = null;
+        confirmDialog.style.display = 'none';
+        btnMerge.remove();
+        btnConfirmYes.removeEventListener('click', onReplace);
+        btnConfirmNo.removeEventListener('click', onCancel);
+        btnMerge.removeEventListener('click', onMerge);
+        resolve(val);
+      };
+      const onReplace = () => cleanup('replace');
+      const onMerge = () => cleanup('merge');
+      const onCancel = () => cleanup('cancel');
+
+      btnConfirmYes.addEventListener('click', onReplace);
+      btnMerge.addEventListener('click', onMerge);
+      btnConfirmNo.addEventListener('click', onCancel);
+      activeConfirmCancel = () => cleanup('cancel');
+    });
+  }
+
+  // --- Initializer ---
+  function init() {
+    loadLibrary();
+    setupEventListeners();
+    renderLibrary();
+    applyViewMode(currentView, false); // false = don't re-render
+    updateGenreDropdown();
+    updateTabBadges();
+    updateStatsDashboard();
+  }
+
+  // --- Storage ---
+  // A5 — normalizeImportedNovel is declared below (function declaration hoists); loadLibrary uses it.
+  function loadLibrary() {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      const parsed = stored ? JSON.parse(stored) : [];
+      // A5 — guard against corrupt storage (non-array, plain object, primitive)
+      if (!Array.isArray(parsed)) {
+        library = [];
+      } else {
+        library = parsed
+          .filter(item => typeof item === 'object' && item !== null && typeof item.id === 'string')
+          .map(normalizeImportedNovel);
+      }
+    } catch (e) {
+      console.error('Failed to load library:', e);
+      library = [];
+    }
+    // A5 — wrap VIEW_PREF_KEY reads in try/catch
+    try {
+      currentView = localStorage.getItem(VIEW_PREF_KEY) || 'grid';
+    } catch (e) {
+      currentView = 'grid';
+    }
+  }
+
+  function saveLibrary() {
+    let ok = true;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(library));
+    } catch (e) {
+      console.error('Storage error:', e);
+      showToast('Storage limit reached. Try using cover image URLs instead of files.', 'error');
+      ok = false;
+    }
+    // These always run so the UI stays consistent even on failure
+    updateTabBadges();
+    updateGenreDropdown();
+    updateStatsDashboard();
+    return ok;
+  }
+
+  // --- Half-Star Rating (touch + mouse) ---
+  function getRatingFromElement(el) {
+    const half = el.closest ? el.closest('.star-half') : null;
+    if (half) return parseFloat(half.dataset.val);
+    return null;
+  }
+
+  function setRating(val) {
+    currentRating = val === 0 ? 0 : Math.max(0.5, Math.min(5, Math.round(val * 2) / 2));
+    formRating.value = currentRating;
+    ratingValueDisplay.textContent = currentRating === 0 ? '0.0 ★' : currentRating.toFixed(1) + ' ★';
+    renderStars(currentRating);
+  }
+
+  function renderStars(val) {
+    const starWrappers = starRatingControl.querySelectorAll('.star-wrapper');
+    starWrappers.forEach((star) => {
+      const i = parseInt(star.dataset.star, 10);
+      star.classList.remove('full', 'half');
+      if (val >= i) {
+        star.classList.add('full');
+      } else if (val >= i - 0.5) {
+        star.classList.add('half');
+      }
+    });
+  }
+
+  // --- Rendering ---
+  function getFilteredNovels() {
+    let filtered = [...library];
+
+    if (activeStatusFilter !== 'ALL') {
+      filtered = filtered.filter(n => n.status === activeStatusFilter);
+    }
+    if (activeGenreFilter !== 'ALL') {
+      const targetGenre = activeGenreFilter.toLowerCase().trim();
+      filtered = filtered.filter(n => {
+        if (!n.genre || typeof n.genre !== 'string') return false;
+        return n.genre.split(',').map(s => s.trim().toLowerCase()).includes(targetGenre);
+      });
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(n => {
+        const tags = Array.isArray(n.tags) ? n.tags.join(' ').toLowerCase() : '';
+        return (
+          (n.title || '').toLowerCase().includes(q) ||
+          (n.author || '').toLowerCase().includes(q) ||
+          (n.genre || '').toLowerCase().includes(q) ||
+          (n.source || '').toLowerCase().includes(q) ||
+          (n.notes || '').toLowerCase().includes(q) ||
+          tags.includes(q)
+        );
+      });
+    }
+
+    filtered.sort((a, b) => {
+      switch (activeSort) {
+        case 'rating-desc':
+          return ((b.rating || 0) - (a.rating || 0)) || ((b.updatedAt || 0) - (a.updatedAt || 0));
+        case 'progress-desc': {
+          const pA = a.chaptersTotal ? (a.chaptersRead || 0) / a.chaptersTotal : 0;
+          const pB = b.chaptersTotal ? (b.chaptersRead || 0) / b.chaptersTotal : 0;
+          return (pB - pA) || ((b.updatedAt || 0) - (a.updatedAt || 0));
+        }
+        case 'title-asc':
+          return (a.title || '').localeCompare(b.title || '');
+        case 'chapters-desc':
+          return ((b.chaptersRead || 0) - (a.chaptersRead || 0));
+        default: // updated-desc
+          return (b.updatedAt || 0) - (a.updatedAt || 0);
+      }
+    });
+
+    return filtered;
+  }
+
+  function renderLibrary() {
+    novelsContainer.innerHTML = '';
+
+    // Hide all states first
+    emptyState.style.display = 'none';
+    noSearchResults.style.display = 'none';
+
+    if (library.length === 0) {
+      emptyState.style.display = 'flex';
+      novelsContainer.style.display = 'none';
+      return;
+    }
+
+    novelsContainer.style.display = '';
+    const filtered = getFilteredNovels();
+
+    if (filtered.length === 0) {
+      noSearchResults.style.display = 'flex';
+      novelsContainer.style.display = 'none';
+      return;
+    }
+
+    novelsContainer.style.display = '';
+    filtered.forEach((novel, index) => {
+      const card = createNovelCard(novel, index);
+      novelsContainer.appendChild(card);
+    });
+  }
+
+  function getStatusClass(status) {
+    const map = {
+      'Reading': 'status-reading',
+      'Completed': 'status-completed',
+      'Plan to Read': 'status-plan',
+      'On Hold': 'status-onhold',
+      'Dropped': 'status-dropped'
+    };
+    return map[status] || 'status-reading';
+  }
+
+  function createNovelCard(novel) {
+    const card = document.createElement('div');
+    card.className = 'novel-card';
+    card.dataset.id = novel.id;
+
+    // Fix #14 — only animate on first appearance
+    const isNew = !_animatedCardIds.has(novel.id);
+    if (isNew) {
+      _animatedCardIds.add(novel.id);
+    } else {
+      card.style.animation = 'none';
+    }
+
+    // Fix #10 — accessibility
+    card.setAttribute('role', 'button');
+    card.setAttribute('tabindex', '0');
+    card.setAttribute('aria-label', `${novel.title} by ${novel.author || 'Unknown Author'}, ${novel.status}`);
+
+    const read = novel.chaptersRead || 0;
+    const total = novel.chaptersTotal || 0;
+    const percent = total > 0 ? Math.min(100, Math.round((read / total) * 100)) : 0;
+    const ratingDisplay = novel.rating > 0 ? novel.rating.toFixed(1) + ' ★' : '—';
+    const statusClass = getStatusClass(novel.status);
+
+    let coverHtml;
+    if (novel.cover) {
+      coverHtml = `<img class="card-cover-img" src="${escHtml(novel.cover)}" alt="${escHtml(novel.title)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="cover-art-placeholder" style="display:none;">
+          <span class="placeholder-spine">${escHtml(novel.genre || 'Novel')}</span>
+          <h3 class="placeholder-title">${escHtml(novel.title)}</h3>
+          <span class="placeholder-author">${escHtml(novel.author || 'Unknown')}</span>
+        </div>`;
+    } else {
+      coverHtml = `<div class="cover-art-placeholder">
+          <span class="placeholder-spine">${escHtml(novel.genre || 'Novel')}</span>
+          <h3 class="placeholder-title">${escHtml(novel.title)}</h3>
+          <span class="placeholder-author">${escHtml(novel.author || 'Unknown')}</span>
+        </div>`;
+    }
+
+    // Stars display
+    const starsHtml = renderStarsDisplay(novel.rating || 0);
+
+    card.innerHTML = `
+      <div class="card-cover-column">
+        <div class="card-cover-wrap">
+          ${coverHtml}
+        </div>
+        <span class="status-badge ${statusClass}">${escHtml(novel.status || 'Reading')}</span>
+      </div>
+      <div class="card-content">
+        <h3 class="card-title">${escHtml(novel.title)}</h3>
+        <p class="card-author">${escHtml(novel.author || 'Unknown Author')}</p>
+        <div class="card-meta-row">
+          <span class="star-rating-pill">${starsHtml}<span class="rating-num">${ratingDisplay}</span></span>
+          ${novel.genre ? `<span class="genre-pill">${escHtml(novel.genre)}</span>` : ''}
+        </div>
+        <div class="card-progress-wrap">
+          <div class="progress-info">
+            <span>Ch. ${read}${total ? ' / ' + total : ''}</span>
+            <span>${total ? percent + '%' : ''}</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" style="width: ${total ? percent : 0}%"></div>
+          </div>
+        </div>
+        <div class="card-quick-actions">
+          <span class="card-source-label">${escHtml(novel.source || '')}</span>
+          <button class="btn-quick-chapter" data-action="quick-add" data-id="${escHtml(novel.id)}" aria-label="Add 1 chapter to ${escHtml(novel.title)}">＋1 Ch</button>
+        </div>
+      </div>`;
+
+    card.addEventListener('click', () => openNovelDetails(novel.id));
+    // Fix #10 — keyboard navigation
+    card.addEventListener('keydown', (e) => {
+      if (e.target !== card) return; // A11 — ignore events from child buttons
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openNovelDetails(novel.id); }
+    });
+
+    const quickAddBtn = card.querySelector('[data-action="quick-add"]');
+    if (quickAddBtn) {
+      quickAddBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        incrementChapter(novel.id, 1);
+      });
+    }
+
+    return card;
+  }
+
+  function renderStarsDisplay(rating) {
+    let html = '';
+    for (let i = 1; i <= 5; i++) {
+      if (rating >= i) {
+        html += '<span class="s-star full">★</span>';
+      } else if (rating >= i - 0.5) {
+        html += '<span class="s-star half">★</span>';
+      } else {
+        html += '<span class="s-star empty">★</span>';
+      }
+    }
+    return html;
+  }
+
+  // --- Increment Chapter ---
+  // A7 — update card in-place (no resort while shelf is visible)
+  function incrementChapter(id, amount) {
+    const novel = library.find(n => n.id === id);
+    if (!novel) return;
+
+    // A13 — guard already-at-last
+    if (novel.chaptersTotal && novel.chaptersRead >= novel.chaptersTotal) {
+      showToast('Already at the last chapter', 'info');
+      return;
+    }
+
+    // A4 — snapshot for rollback
+    const snapshot = JSON.parse(JSON.stringify(library));
+
+    novel.chaptersRead = (novel.chaptersRead || 0) + amount;
+
+    // A13 — clamp to total
+    if (novel.chaptersTotal && novel.chaptersRead > novel.chaptersTotal) {
+      novel.chaptersRead = novel.chaptersTotal;
+    }
+
+    // A13 — switch On Hold / Dropped → Reading on chapter log
+    if (novel.status === 'On Hold' || novel.status === 'Dropped') {
+      novel.status = 'Reading';
+    }
+
+    // Fix #13 — switching Plan to Read → Reading on first chapter
+    if (novel.status === 'Plan to Read') {
+      novel.status = 'Reading';
+      if (!novel.started) novel.started = localDateString();
+    }
+
+    let statusChanged = false;
+    if (novel.chaptersTotal && novel.chaptersRead >= novel.chaptersTotal && novel.status !== 'Completed') {
+      novel.status = 'Completed';
+      if (!novel.finished) novel.finished = localDateString();
+      statusChanged = true;
+      showToast(`🎉 Finished "${novel.title}"!`, 'success');
+    } else {
+      showToast(`Ch. ${novel.chaptersRead} logged for "${novel.title}"`, 'success');
+    }
+
+    novel.updatedAt = Date.now();
+
+    const saved = saveLibrary();
+    if (!saved) {
+      library = snapshot;
+      saveLibrary(); // re-sync UI with restored state (saveLibrary always updates UI)
+      return;
+    }
+
+    if (statusChanged) {
+      // Full re-render acceptable when novel completes
+      renderLibrary();
+    } else {
+      // A7 — update card DOM in-place to avoid list reorder
+      const card = novelsContainer.querySelector('[data-id="' + id + '"]');
+      if (card) {
+        const read2 = novel.chaptersRead || 0;
+        const total2 = novel.chaptersTotal || 0;
+        const pct2 = total2 > 0 ? Math.min(100, Math.round((read2 / total2) * 100)) : 0;
+        const progInfo = card.querySelector('.progress-info');
+        if (progInfo) {
+          progInfo.children[0].textContent = 'Ch. ' + read2 + (total2 ? ' / ' + total2 : '');
+          progInfo.children[1].textContent = total2 ? pct2 + '%' : '';
+        }
+        const fill = card.querySelector('.progress-fill');
+        if (fill) fill.style.width = (total2 ? pct2 : 0) + '%';
+        const badge = card.querySelector('.status-badge');
+        if (badge) {
+          badge.textContent = novel.status;
+          badge.className = 'status-badge ' + getStatusClass(novel.status);
+        }
+      } else {
+        renderLibrary();
+      }
+    }
+
+    // Re-find from library and refresh detail view if open
+    if (viewingNovelId === id) {
+      const updated = library.find(n => n.id === id);
+      if (updated) renderNovelDetailsContent(updated);
+    }
+  }
+
+  // --- Details Tab (Full-Page View) ---
+  function openNovelDetails(id) {
+    const novel = library.find(n => n.id === id);
+    if (!novel) return;
+    viewingNovelId = id;
+    renderNovelDetailsContent(novel);
+    viewShelf.style.display = 'none';
+    viewNovelDetails.style.display = 'flex';
+    try {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+      if (window.history && window.history.pushState) {
+        window.history.pushState({ screen: 'details', id: id }, '');
+      }
+    } catch (e) {
+      // ignore history errors
+    }
+  }
+
+  function closeNovelDetails(popHistory = true) {
+    viewNovelDetails.style.display = 'none';
+    viewShelf.style.display = '';
+    viewingNovelId = null;
+    try {
+      if (popHistory && window.history && window.history.state && window.history.state.screen === 'details') {
+        window.history.back();
+      }
+    } catch (e) {
+      // ignore history errors
+    }
+    renderLibrary();
+  }
+
+  // --- Full-Page Reading Stats Tab ---
+  function openStatsView() {
+    viewShelf.style.display = 'none';
+    if (viewNovelDetails) viewNovelDetails.style.display = 'none';
+    if (viewBackup) viewBackup.style.display = 'none';
+    if (viewStats) viewStats.style.display = 'flex';
+    updateStatsDashboard();
+    try {
+      if (window.history && window.history.pushState) {
+        window.history.pushState({ screen: 'stats' }, '');
+      }
+    } catch (e) { }
+  }
+
+  function closeStatsView(popHistory = true) {
+    if (viewStats) viewStats.style.display = 'none';
+    viewShelf.style.display = '';
+    try {
+      if (popHistory && window.history && window.history.state && window.history.state.screen === 'stats') {
+        window.history.back();
+      }
+    } catch (e) { }
+  }
+
+  // --- Full-Page Backup & Restore Tab ---
+  function openBackupView() {
+    viewShelf.style.display = 'none';
+    if (viewNovelDetails) viewNovelDetails.style.display = 'none';
+    if (viewStats) viewStats.style.display = 'none';
+    if (viewBackup) viewBackup.style.display = 'flex';
+    try {
+      if (window.history && window.history.pushState) {
+        window.history.pushState({ screen: 'backup' }, '');
+      }
+    } catch (e) { }
+  }
+
+  function closeBackupView(popHistory = true) {
+    if (viewBackup) viewBackup.style.display = 'none';
+    viewShelf.style.display = '';
+    try {
+      if (popHistory && window.history && window.history.state && window.history.state.screen === 'backup') {
+        window.history.back();
+      }
+    } catch (e) { }
+  }
+
+  // A1 — if form was opened from details, return to details; else return to shelf
+  function closeFormModal(popHistory = true) {
+    if (modalNovelForm) modalNovelForm.style.display = 'none';
+    if (formOpenedFromDetails && viewingNovelId) {
+      const stillExists = library.find(n => n.id === viewingNovelId);
+      if (stillExists) {
+        viewNovelDetails.style.display = 'flex';
+        viewShelf.style.display = 'none';
+        // Don't pop history here — the form state was pushed on top of details state
+      } else {
+        viewShelf.style.display = '';
+      }
+    } else {
+      viewShelf.style.display = '';
+    }
+    formOpenedFromDetails = false;
+    // Pop the history state pushed when the form opened
+    try {
+      if (popHistory && window.history && window.history.state && window.history.state.screen === 'form') {
+        window.history.back();
+      }
+    } catch (e) { }
+  }
+
+  function openFormModal() {
+    viewShelf.style.display = 'none';
+    if (viewNovelDetails) viewNovelDetails.style.display = 'none';
+    if (viewStats) viewStats.style.display = 'none';
+    if (viewBackup) viewBackup.style.display = 'none';
+    if (modalNovelForm) modalNovelForm.style.display = 'flex';
+    try {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+      if (window.history && window.history.pushState) {
+        window.history.pushState({ screen: 'form' }, '');
+      }
+    } catch (e) { }
+  }
+
+  function renderNovelDetailsContent(novel) {
+    detailHeaderTitle.textContent = novel.title;
+
+    const read = novel.chaptersRead || 0;
+    const total = novel.chaptersTotal || 0;
+    const percent = total > 0 ? Math.min(100, Math.round((read / total) * 100)) : 0;
+    const statusClass = getStatusClass(novel.status);
+    const starsHtml = renderStarsDisplay(novel.rating || 0);
+
+    let coverHtml;
+    if (novel.cover) {
+      coverHtml = `<img src="${escHtml(novel.cover)}" alt="${escHtml(novel.title)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="cover-art-placeholder" style="display:none;">
+          <span class="placeholder-spine">${escHtml(novel.genre || 'Novel')}</span>
+          <h3 class="placeholder-title">${escHtml(novel.title)}</h3>
+          <span class="placeholder-author">${escHtml(novel.author || 'Unknown')}</span>
+        </div>`;
+    } else {
+      coverHtml = `<div class="cover-art-placeholder">
+          <span class="placeholder-spine">${escHtml(novel.genre || 'Novel')}</span>
+          <h3 class="placeholder-title">${escHtml(novel.title)}</h3>
+          <span class="placeholder-author">${escHtml(novel.author || 'Unknown')}</span>
+        </div>`;
+    }
+
+    const tagsHtml = (novel.tags && novel.tags.length > 0)
+      ? novel.tags.map(t => `<span class="tag-badge">#${escHtml(t.trim())}</span>`).join('')
+      : '<span class="no-tags">No tags added</span>';
+
+    let sourceLinkHtml = novel.source ? escHtml(novel.source) : '—';
+    if (novel.link && novel.source && /^https?:\/\//i.test(novel.link)) {
+      sourceLinkHtml = `<a href="${escHtml(novel.link)}" target="_blank" rel="noopener noreferrer">${escHtml(novel.source)} ↗</a>`;
+    } else if (novel.link && /^https?:\/\//i.test(novel.link)) {
+      sourceLinkHtml = `<a href="${escHtml(novel.link)}" target="_blank" rel="noopener noreferrer">Visit Source ↗</a>`;
+    }
+
+    const dateStr = [
+      novel.started ? 'Started: ' + escHtml(novel.started) : null,
+      novel.finished ? 'Finished: ' + escHtml(novel.finished) : null
+    ].filter(Boolean).join('<br>') || '—';
+
+    detailBodyContent.innerHTML = `
+      <div class="detail-hero">
+        <div class="detail-cover-box">${coverHtml}</div>
+        <div class="detail-info">
+          <h1 class="detail-title">${escHtml(novel.title)}</h1>
+          <p class="detail-author">by ${escHtml(novel.author || 'Unknown Author')}</p>
+          <div class="detail-badges-row">
+            <span class="status-badge ${statusClass}">${escHtml(novel.status)}</span>
+            <span class="detail-stars">${starsHtml}<span class="detail-rating-num">${novel.rating > 0 ? novel.rating.toFixed(1) : 'Unrated'}</span></span>
+            ${novel.genre ? `<span class="genre-pill">${escHtml(novel.genre)}</span>` : ''}
+          </div>
+          <div class="detail-progress-card">
+            <div class="detail-progress-header">
+              <span>Chapter Progress</span>
+              <strong>${read}${total ? ' / ' + total + ' (' + percent + '%)' : ' chapters'}</strong>
+            </div>
+            <div class="progress-track" style="height:8px;margin-top:6px">
+              <div class="progress-fill" style="width: ${total ? percent : 0}%"></div>
+            </div>
+            <div class="detail-progress-buttons">
+              <button class="btn btn-secondary btn-sm" id="btn-detail-add-1">＋1 Chapter</button>
+              <button class="btn btn-secondary btn-sm" id="btn-detail-add-5">＋5 Chapters</button>
+              ${/^https?:\/\//i.test(novel.link || '') ? `<a class="btn btn-primary btn-sm detail-read-btn" href="${escHtml(novel.link)}" target="_blank" rel="noopener noreferrer">Read ↗</a>` : ''}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="detail-meta-grid">
+        <div class="meta-item">
+          <div class="meta-item-label">Source</div>
+          <div class="meta-item-value">${sourceLinkHtml}</div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-item-label">Dates</div>
+          <div class="meta-item-value">${dateStr}</div>
+        </div>
+      </div>
+      <div class="detail-tags-wrap">${tagsHtml}</div>
+      ${novel.notes ? `<div class="detail-notes-card"><h4>Notes &amp; Review</h4><div class="detail-notes-content">${escHtml(novel.notes)}</div></div>` : ''}
+    `;
+
+    document.getElementById('btn-detail-add-1').addEventListener('click', () => incrementChapter(novel.id, 1));
+    document.getElementById('btn-detail-add-5').addEventListener('click', () => incrementChapter(novel.id, 5));
+  }
+
+  // --- Add / Edit Modal ---
+  function setStatusPill(status, autoFillDates = false) {
+    const val = status || 'Reading';
+    if (formStatus) formStatus.value = val;
+    const container = document.getElementById('status-quick-pills');
+    if (container) {
+      container.querySelectorAll('.status-pill-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.status === val);
+      });
+    }
+    // Fix #13 — auto-fill dates when setting status (only on explicit user tap)
+    if (autoFillDates) {
+      if (val === 'Reading' && formStarted && !formStarted.value) {
+        formStarted.value = localDateString();
+      }
+      if (val === 'Completed') {
+        if (formFinished && !formFinished.value) {
+          formFinished.value = localDateString();
+        }
+      } else {
+        // If switching to non-completed, clear finished date
+        if (formFinished) formFinished.value = '';
+      }
+    }
+  }
+
+  function openAddModal() {
+    formOpenedFromDetails = false; // A1 — opened from shelf
+    novelForm.reset();
+    formNovelId.value = '';
+    modalFormTitle.textContent = 'Add novel';
+    setRating(0);
+    resetCoverPreview();
+    setStatusPill('Reading');
+    formChaptersRead.value = '0';
+    formChaptersTotal.value = '';
+    formStarted.value = localDateString(); // Auto-set started to today on creation
+    formFinished.value = '';
+    // Reset genre quick pills visual state
+    const genrePills = document.getElementById('genre-quick-pills');
+    if (genrePills) genrePills.querySelectorAll('.pill-btn').forEach(p => p.classList.remove('active'));
+    openFormModal();
+  }
+
+  function openEditModal(id) {
+    const novel = library.find(n => n.id === id);
+    if (!novel) return;
+
+    novelForm.reset();
+    formNovelId.value = novel.id;
+    modalFormTitle.textContent = 'Edit novel';
+
+    formTitle.value = novel.title || '';
+    formAuthor.value = novel.author || '';
+    setStatusPill(novel.status || 'Reading');
+    formChaptersRead.value = novel.chaptersRead != null ? String(novel.chaptersRead) : '0';
+    formChaptersTotal.value = novel.chaptersTotal != null ? String(novel.chaptersTotal) : '';
+    setRating(novel.rating || 0);
+    formStarted.value = novel.started || '';
+    formFinished.value = novel.finished || '';
+    formSource.value = novel.source || '';
+    formLink.value = novel.link || '';
+    formGenre.value = novel.genre || '';
+    formTags.value = Array.isArray(novel.tags) ? novel.tags.join(', ') : (novel.tags || '');
+    formNotes.value = novel.notes || '';
+
+    // A13 — sync genre quick pills with formGenre
+    const genrePills = document.getElementById('genre-quick-pills');
+    if (genrePills) {
+      const gNorm = (formGenre.value || '').trim().toLowerCase();
+      genrePills.querySelectorAll('.pill-btn').forEach(p => {
+        p.classList.toggle('active', p.dataset.genre.toLowerCase() === gNorm);
+      });
+    }
+
+    if (novel.cover) {
+      setCoverPreview(novel.cover);
+      // Only show URL in input if it's a real URL, not a data URI
+      coverUrlInput.value = novel.cover.startsWith('data:') ? '' : novel.cover;
+    } else {
+      resetCoverPreview();
+    }
+
+    openFormModal();
+  }
+
+  function handleFormSubmit(e) {
+    e.preventDefault();
+
+    const title = formTitle.value.trim();
+    if (!title) {
+      showToast('Please enter a novel title', 'error');
+      formTitle.focus();
+      return;
+    }
+
+    const id = formNovelId.value || 'novel_' + Date.now();
+    let read = Math.max(0, parseInt(formChaptersRead.value, 10) || 0);
+    const totalRaw = parseInt(formChaptersTotal.value, 10);
+    const total = isNaN(totalRaw) || totalRaw <= 0 ? null : totalRaw;
+    let status = formStatus.value;
+    let started = formStarted.value || localDateString();
+    let finished = formFinished.value;
+
+    // A10 & Task 1: Auto-set finished when status becomes Completed, clear when it leaves Completed
+    if (status === 'Completed') {
+      if (total) read = total;
+      if (!finished) {
+        finished = localDateString();
+        formFinished.value = finished;
+      }
+    } else {
+      // Clear finished if leaving Completed status
+      finished = '';
+      if (formFinished) formFinished.value = '';
+    }
+
+    const rating = parseFloat(formRating.value) || 0;
+    const tags = formTags.value
+      ? formTags.value.split(',').map(t => t.trim()).filter(Boolean)
+      : [];
+
+    // A12 — Cover and Link normalization
+    let cover = '';
+    if (coverImgPreview.style.display === 'block' && coverImgPreview.src) {
+      if (coverImgPreview.src.startsWith('data:')) {
+        cover = coverImgPreview.src;
+      } else {
+        cover = normalizeUrl(coverUrlInput.value);
+      }
+    } else if (coverUrlInput.value.trim()) {
+      cover = normalizeUrl(coverUrlInput.value);
+    }
+
+    const link = normalizeUrl(formLink.value);
+
+    const novelData = {
+      id,
+      title,
+      author: formAuthor.value.trim(),
+      status,
+      chaptersRead: read,
+      chaptersTotal: total,
+      rating,
+      started,
+      finished,
+      startedEstimated: false,
+      finishedEstimated: false,
+      source: formSource.value.trim(),
+      link,
+      genre: formGenre.value.trim(),
+      tags,
+      notes: formNotes.value.trim(),
+      cover,
+      updatedAt: Date.now()
+    };
+
+    // A4 — rollback snapshot
+    const snapshot = JSON.parse(JSON.stringify(library));
+    const existingIndex = library.findIndex(n => n.id === id);
+    const isNew = existingIndex < 0;
+
+    if (!isNew) {
+      novelData.createdAt = library[existingIndex].createdAt || Date.now();
+      library[existingIndex] = novelData;
+    } else {
+      novelData.createdAt = Date.now();
+      library.unshift(novelData);
+    }
+
+    const saved = saveLibrary();
+    if (!saved) {
+      library = snapshot;
+      saveLibrary();
+      return;
+    }
+
+    if (!isNew) {
+      showToast(`Updated "${title}"`, 'success');
+    } else {
+      showToast(`Added "${title}" to your shelf!`, 'success');
+    }
+
+    renderLibrary();
+    closeFormModal(true);
+
+    // Fix #7 — re-render details in place instead of re-opening (which pushes another history entry)
+    if (viewingNovelId === id) {
+      const updated = library.find(n => n.id === id);
+      if (updated) renderNovelDetailsContent(updated);
+    }
+  }
+
+  async function deleteNovel(id) {
+    const novel = library.find(n => n.id === id);
+    if (!novel) return;
+
+    const confirmed = await showConfirm(`Delete "${novel.title}"? This cannot be undone.`);
+    if (!confirmed) return;
+
+    // A4 — snapshot for rollback
+    const snapshot = JSON.parse(JSON.stringify(library));
+    library = library.filter(n => n.id !== id);
+
+    const saved = saveLibrary();
+    if (!saved) {
+      library = snapshot;
+      saveLibrary();
+      return;
+    }
+
+    renderLibrary();
+    if (viewNovelDetails.style.display === 'flex') {
+      closeNovelDetails(true);
+    }
+    viewingNovelId = null;
+    showToast(`Deleted "${novel.title}"`, 'success');
+  }
+
+  // --- Cover Handling ---
+  function setCoverPreview(src) {
+    coverImgPreview.src = src;
+    coverImgPreview.style.display = 'block';
+    coverPlaceholder.style.display = 'none';
+    btnRemoveCover.style.display = 'flex';
+  }
+
+  function resetCoverPreview() {
+    coverImgPreview.removeAttribute('src');
+    coverImgPreview.style.display = 'none';
+    coverPlaceholder.style.display = 'flex';
+    btnRemoveCover.style.display = 'none';
+    coverUrlInput.value = '';
+    // Reset file input safely
+    try { coverFileInput.value = ''; } catch (e) {/* ignore */ }
+  }
+
+  function handleCoverFile(file) {
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX_W = 500;
+        const MAX_H = 750;
+        let w = img.width;
+        let h = img.height;
+
+        // A13 — guard w/h === 0
+        if (!w || !h) {
+          showToast('Invalid image dimensions.', 'error');
+          return;
+        }
+
+        // Scale proportionally to fit within MAX_W x MAX_H
+        const scaleW = w > MAX_W ? MAX_W / w : 1;
+        const scaleH = h > MAX_H ? MAX_H / h : 1;
+        const scale = Math.min(scaleW, scaleH);
+        w = Math.round(w * scale);
+        h = Math.round(h * scale);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        // A13 — fill white background so transparent PNGs aren't black
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+        setCoverPreview(dataUrl);
+        coverUrlInput.value = '';
+      };
+      img.onerror = () => showToast('Failed to load image file.', 'error');
+      img.src = e.target.result;
+    };
+    reader.onerror = () => showToast('Failed to read image file.', 'error');
+    reader.readAsDataURL(file);
+  }
+
+  // --- Stats Dashboard ---
+  function updateStatsDashboard() {
+    if (!viewStats) return;
+
+    const calc = (typeof window !== 'undefined' && window.StatsCalculator)
+      ? window.StatsCalculator
+      : (typeof StatsCalculator !== 'undefined' ? StatsCalculator : null);
+
+    if (!calc) return;
+
+    const now = new Date();
+    const stats = calc.computeStats(library, statsTimeFilter, now);
+
+    // Top Cards
+    if (statTotalNovels) statTotalNovels.textContent = stats.totalNovels;
+    if (statNovelsFinished) statNovelsFinished.textContent = stats.completed.count;
+
+    if (statChaptersRead) statChaptersRead.textContent = stats.chapters.total.toLocaleString();
+    if (statChaptersSub) {
+      statChaptersSub.textContent = `${stats.chapters.inCompleted.toLocaleString()} completed • ${stats.chapters.inReading.toLocaleString()} reading`;
+    }
+
+    if (statAvgRating) {
+      statAvgRating.textContent = stats.ratings.average ? stats.ratings.average + ' ★' : '—';
+    }
+    if (statAvgRatingSub) {
+      statAvgRatingSub.textContent = stats.ratings.totalRated > 0
+        ? `from ${stats.ratings.totalRated} rating${stats.ratings.totalRated !== 1 ? 's' : ''}`
+        : 'no ratings';
+    }
+
+    // 1. Reading Pace & Speed Section (Filtered completed stats)
+    if (sectionPace) {
+      const hasCompleted = stats.completed.count > 0 && (stats.completed.avgDaysToFinish !== null || stats.completed.fastest);
+      if (hasCompleted) {
+        sectionPace.style.display = 'block';
+        if (statAvgDays) statAvgDays.textContent = stats.completed.avgDaysToFinish != null ? `${stats.completed.avgDaysToFinish}d` : '—';
+        if (statAvgPace) statAvgPace.textContent = stats.completed.avgReadingPace != null ? stats.completed.avgReadingPace : '—';
+        if (statAvgPaceSub) {
+          if (stats.completed.avgReadingPace != null && stats.completed.paceBasisCount > 0) {
+            statAvgPaceSub.textContent = stats.completed.paceBasisCount === 1
+              ? 'based on 1 novel'
+              : `based on ${stats.completed.paceBasisCount} novels`;
+          } else {
+            statAvgPaceSub.textContent = '';
+          }
+        }
+
+        if (paceRecords) {
+          paceRecords.innerHTML = '';
+          if (stats.completed.fastest) {
+            const fRow = document.createElement('div');
+            fRow.className = 'pace-record-row';
+            fRow.innerHTML = `
+              <div style="display:flex;align-items:center;min-width:0;flex:1;">
+                <span class="pace-record-tag tag-fastest">Fastest</span>
+                <span class="pace-record-title" title="${escHtml(stats.completed.fastest.title)}">${escHtml(stats.completed.fastest.title)}</span>
+              </div>
+              <span class="pace-record-days">${stats.completed.fastest.days}d (${stats.completed.fastest.chapters} ch)</span>
+            `;
+            paceRecords.appendChild(fRow);
+          }
+          if (stats.completed.longest && (!stats.completed.fastest || stats.completed.longest.days !== stats.completed.fastest.days || stats.completed.longest.title !== stats.completed.fastest.title)) {
+            const lRow = document.createElement('div');
+            lRow.className = 'pace-record-row';
+            lRow.innerHTML = `
+              <div style="display:flex;align-items:center;min-width:0;flex:1;">
+                <span class="pace-record-tag tag-longest">Longest</span>
+                <span class="pace-record-title" title="${escHtml(stats.completed.longest.title)}">${escHtml(stats.completed.longest.title)}</span>
+              </div>
+              <span class="pace-record-days">${stats.completed.longest.days}d (${stats.completed.longest.chapters} ch)</span>
+            `;
+            paceRecords.appendChild(lRow);
+          }
+        }
+      } else {
+        sectionPace.style.display = 'none';
+      }
+    }
+
+    // 2. Monthly Completions Chart (Last 6 Months)
+    if (sectionMonthly && monthlyBarChart) {
+      const hasAnyCompleted = stats.monthlyCompletions.some(m => m.count > 0);
+      if (hasAnyCompleted) {
+        sectionMonthly.style.display = 'block';
+        monthlyBarChart.innerHTML = '';
+        const maxCount = Math.max(...stats.monthlyCompletions.map(m => m.count), 1);
+
+        stats.monthlyCompletions.forEach(m => {
+          const col = document.createElement('div');
+          col.className = 'monthly-col';
+          const heightPct = m.count > 0 ? Math.max(12, Math.round((m.count / maxCount) * 100)) : 0;
+          col.innerHTML = `
+            <span class="monthly-col-count" style="${m.count === 0 ? 'opacity:0.3;' : ''}">${m.count}</span>
+            <div class="monthly-bar-track">
+              <div class="monthly-bar-fill" style="height:${heightPct}%;${m.count === 0 ? 'opacity:0.15;' : ''}"></div>
+            </div>
+            <span class="monthly-col-label">${escHtml(m.label)}</span>
+          `;
+          monthlyBarChart.appendChild(col);
+        });
+      } else {
+        sectionMonthly.style.display = 'none';
+      }
+    }
+
+    // 3. In-Progress Novels (Reading status)
+    if (sectionInProgress && readingProgressList) {
+      if (stats.inProgressNovels.length > 0) {
+        sectionInProgress.style.display = 'block';
+        readingProgressList.innerHTML = '';
+
+        stats.inProgressNovels.forEach(n => {
+          const item = document.createElement('div');
+          item.className = 'reading-progress-item';
+          const totalStr = n.chaptersTotal ? ` / ${n.chaptersTotal}` : '';
+          const staleTag = n.isStale
+            ? `<span class="stale-read-indicator" title="No chapters logged in 14+ days">Untouched 14d+</span>`
+            : '';
+
+          let estimateHtml = '';
+          if (n.estimatedFinish) {
+            const staleClass = n.estimatedFinish.isStale ? ' stale-estimate' : '';
+            estimateHtml = `
+              <div class="reading-item-estimate${staleClass}">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <span>${escHtml(n.estimatedFinish.text)} • <small style="opacity:0.8;">${escHtml(n.estimatedFinish.paceBasisLabel)}</small></span>
+              </div>
+            `;
+          }
+
+          item.innerHTML = `
+            <div class="reading-item-main">
+              <div class="reading-item-title">${escHtml(n.title)}</div>
+              <div class="reading-item-meta">Ch. ${n.chaptersRead}${totalStr}</div>
+              ${estimateHtml}
+            </div>
+            <div class="reading-item-badge-wrap">
+              <span class="reading-badge-days">${n.daysReading}d reading</span>
+              ${staleTag}
+            </div>
+          `;
+          // Click to view details
+          item.style.cursor = 'pointer';
+          item.addEventListener('click', () => {
+            closeStatsView(false);
+            openNovelDetails(n.id);
+          });
+          readingProgressList.appendChild(item);
+        });
+      } else {
+        sectionInProgress.style.display = 'none';
+      }
+    }
+
+    // 4. Genre Breakdown (All Time)
+    if (sectionGenres && genreBreakdownList) {
+      if (stats.genreBreakdown && stats.genreBreakdown.length > 0) {
+        sectionGenres.style.display = 'block';
+        genreBreakdownList.innerHTML = '';
+
+        const maxGenreCount = Math.max(...stats.genreBreakdown.map(g => g.count), 1);
+        const displayGenres = (!genresExpanded && stats.genreBreakdown.length > 5)
+          ? stats.genreBreakdown.slice(0, 5)
+          : stats.genreBreakdown;
+
+        displayGenres.forEach(g => {
+          const row = document.createElement('div');
+          row.className = 'genre-row';
+          const pct = Math.max(8, Math.round((g.count / maxGenreCount) * 100));
+          const ratingText = g.avgRating ? `★ ${g.avgRating}` : '—';
+
+          row.innerHTML = `
+            <div class="genre-row-header">
+              <span class="genre-row-name">${escHtml(g.name)}</span>
+              <div class="genre-row-stats">
+                <span class="genre-rating">${ratingText}</span>
+                <span class="genre-count">${g.count} novel${g.count > 1 ? 's' : ''}</span>
+              </div>
+            </div>
+            <div class="genre-bar-track">
+              <div class="genre-bar-fill" style="width: ${pct}%;"></div>
+            </div>
+          `;
+
+          row.addEventListener('click', () => {
+            closeStatsView(true);
+            activeGenreFilter = g.name;
+            if (genreFilter) genreFilter.value = g.name;
+            renderLibrary();
+          });
+          genreBreakdownList.appendChild(row);
+        });
+
+        if (btnToggleGenres) {
+          if (stats.genreBreakdown.length > 5) {
+            btnToggleGenres.style.display = 'block';
+            btnToggleGenres.textContent = genresExpanded
+              ? 'Show less'
+              : `Show all (${stats.genreBreakdown.length})`;
+          } else {
+            btnToggleGenres.style.display = 'none';
+          }
+        }
+      } else {
+        sectionGenres.style.display = 'none';
+      }
+    }
+
+    // 5. Dropped Analysis (All Time)
+    if (sectionDropped) {
+      if (stats.droppedAnalysis) {
+        sectionDropped.style.display = 'block';
+        if (statDropChapter) {
+          statDropChapter.textContent = stats.droppedAnalysis.avgDroppedChapter != null
+            ? `Ch. ${stats.droppedAnalysis.avgDroppedChapter}`
+            : '—';
+        }
+        if (itemDropPct && statDropPct) {
+          if (stats.droppedAnalysis.avgDroppedPercentage != null) {
+            itemDropPct.style.display = 'flex';
+            statDropPct.textContent = `${stats.droppedAnalysis.avgDroppedPercentage}%`;
+          } else {
+            itemDropPct.style.display = 'none';
+          }
+        }
+        if (itemCompletionRate && statCompletionRate) {
+          if (stats.droppedAnalysis.completionRate != null) {
+            itemCompletionRate.style.display = 'flex';
+            statCompletionRate.textContent = `${stats.droppedAnalysis.completionRate}%`;
+          } else {
+            itemCompletionRate.style.display = 'none';
+          }
+        }
+        if (droppedInsight) {
+          droppedInsight.textContent = stats.droppedAnalysis.insightText;
+        }
+      } else {
+        sectionDropped.style.display = 'none';
+      }
+    }
+
+    // 6. Top Lists (All Time)
+    if (sectionTopLists) {
+      let hasAnyTopList = false;
+
+      // Highest Rated
+      if (blockHighestRated && listHighestRated) {
+        if (stats.topLists && stats.topLists.highestRated && stats.topLists.highestRated.length > 0) {
+          blockHighestRated.style.display = 'flex';
+          listHighestRated.innerHTML = '';
+          stats.topLists.highestRated.forEach((item, idx) => {
+            const row = document.createElement('div');
+            row.className = 'top-list-row';
+            row.innerHTML = `
+              <span class="top-rank rank-${idx + 1}">#${idx + 1}</span>
+              <span class="top-novel-title" title="${escHtml(item.title)}">${escHtml(item.title)}</span>
+              <span class="top-metric">★ ${item.rating.toFixed(1)} (${item.chaptersRead} ch)</span>
+            `;
+            row.addEventListener('click', () => {
+              closeStatsView(false);
+              openNovelDetails(item.id);
+            });
+            listHighestRated.appendChild(row);
+          });
+          hasAnyTopList = true;
+        } else {
+          blockHighestRated.style.display = 'none';
+        }
+      }
+
+      // Longest Completed
+      if (blockLongestCompleted && listLongestCompleted) {
+        if (stats.topLists && stats.topLists.longestCompleted && stats.topLists.longestCompleted.length > 0) {
+          blockLongestCompleted.style.display = 'flex';
+          listLongestCompleted.innerHTML = '';
+          stats.topLists.longestCompleted.forEach((item, idx) => {
+            const row = document.createElement('div');
+            row.className = 'top-list-row';
+            row.innerHTML = `
+              <span class="top-rank rank-${idx + 1}">#${idx + 1}</span>
+              <span class="top-novel-title" title="${escHtml(item.title)}">${escHtml(item.title)}</span>
+              <span class="top-metric">${item.chaptersRead.toLocaleString()} ch</span>
+            `;
+            row.addEventListener('click', () => {
+              closeStatsView(false);
+              openNovelDetails(item.id);
+            });
+            listLongestCompleted.appendChild(row);
+          });
+          hasAnyTopList = true;
+        } else {
+          blockLongestCompleted.style.display = 'none';
+        }
+      }
+
+      // Most-Read Author
+      if (blockMostReadAuthor && tileMostReadAuthor) {
+        if (stats.topLists && stats.topLists.mostReadAuthor) {
+          blockMostReadAuthor.style.display = 'flex';
+          const a = stats.topLists.mostReadAuthor;
+          tileMostReadAuthor.innerHTML = `
+            <span class="author-tile-name">${escHtml(a.name)}</span>
+            <span class="author-tile-stats">${a.totalChapters.toLocaleString()} ch (${a.count} novel${a.count > 1 ? 's' : ''})</span>
+          `;
+          hasAnyTopList = true;
+        } else {
+          blockMostReadAuthor.style.display = 'none';
+        }
+      }
+
+      sectionTopLists.style.display = hasAnyTopList ? 'block' : 'none';
+    }
+
+    // 4. Status Breakdown Bar & Legend
+    if (stackedStatusBar && statusLegend) {
+      stackedStatusBar.innerHTML = '';
+      statusLegend.innerHTML = '';
+      const colors = {
+        Reading: 'var(--color-reading)',
+        'Plan to Read': 'var(--color-plan)',
+        Completed: 'var(--color-completed)',
+        'On Hold': 'var(--color-onhold)',
+        Dropped: 'var(--color-dropped)'
+      };
+      const total = stats.totalNovels || 1;
+
+      Object.entries(stats.statuses).forEach(([status, count]) => {
+        if (count > 0) {
+          const seg = document.createElement('div');
+          seg.className = 'stacked-segment';
+          seg.style.width = ((count / total) * 100).toFixed(1) + '%';
+          seg.style.backgroundColor = colors[status];
+          seg.title = `${status}: ${count}`;
+          stackedStatusBar.appendChild(seg);
+        }
+
+        const li = document.createElement('div');
+        li.className = 'legend-item' + (count === 0 ? ' dimmed' : '');
+        li.innerHTML = `
+          <span class="legend-dot" style="background:${colors[status]}"></span>
+          <span class="legend-text">${escHtml(status)}</span>
+          <span class="legend-count">${count}</span>
+        `;
+
+        if (count > 0) {
+          li.addEventListener('click', () => {
+            closeStatsView(true);
+            activeStatusFilter = status;
+            statusTabs.querySelectorAll('.status-tab').forEach(t =>
+              t.classList.toggle('active', t.dataset.status === status)
+            );
+            renderLibrary();
+          });
+        }
+        statusLegend.appendChild(li);
+      });
+    }
+
+    // 5. Rating Distribution
+    if (ratingHistogram) {
+      ratingHistogram.innerHTML = '';
+      if (stats.ratings.totalRated === 0) {
+        ratingHistogram.innerHTML = '<div class="rating-empty-state">No rated novels yet</div>';
+      } else {
+        const bucketLabels = [
+          { key: '5', label: '5★' },
+          { key: '4.5', label: '4.5★' },
+          { key: '4', label: '4★' },
+          { key: '3.5', label: '3.5★' },
+          { key: '3', label: '3★' },
+          { key: '<3', label: '<3★' }
+        ];
+        const maxCount = Math.max(...Object.values(stats.ratings.distribution), 1);
+        bucketLabels.forEach(({ key, label }) => {
+          const count = stats.ratings.distribution[key];
+          const pct = ((count / maxCount) * 100).toFixed(0);
+          const row = document.createElement('div');
+          row.className = 'rating-bar-row' + (count === 0 ? ' dimmed' : '');
+          row.innerHTML = `
+            <span class="rating-bar-label">${label}</span>
+            <div class="rating-bar-track"><div class="rating-bar-fill" style="width:${count > 0 ? pct : 0}%"></div></div>
+            <span class="rating-bar-count">${count}</span>`;
+          ratingHistogram.appendChild(row);
+        });
+      }
+    }
+  }
+
+  function updateTabBadges() {
+    const counts = { ALL: library.length, Reading: 0, 'Plan to Read': 0, Completed: 0, 'On Hold': 0, Dropped: 0 };
+    library.forEach(n => { if (counts[n.status] !== undefined) counts[n.status]++; });
+    document.getElementById('count-all').textContent = counts.ALL;
+    document.getElementById('count-reading').textContent = counts.Reading;
+    document.getElementById('count-plan').textContent = counts['Plan to Read'];
+    document.getElementById('count-completed').textContent = counts.Completed;
+    document.getElementById('count-onhold').textContent = counts['On Hold'];
+    document.getElementById('count-dropped').textContent = counts.Dropped;
+  }
+
+  function updateGenreDropdown() {
+    if (!genreFilter) return;
+    // A8 — De-duplicate genres case-insensitively, keeping first-seen casing
+    const genreMap = new Map();
+    library.forEach(n => {
+      if (n.genre && typeof n.genre === 'string') {
+        const parts = n.genre.split(',').map(s => s.trim()).filter(Boolean);
+        parts.forEach(val => {
+          const lower = val.toLowerCase();
+          if (!genreMap.has(lower)) {
+            genreMap.set(lower, val);
+          }
+        });
+      }
+    });
+
+    const currentVal = (genreFilter.value || 'ALL').trim();
+    const currentValLower = currentVal.toLowerCase();
+    genreFilter.innerHTML = '<option value="ALL">All Genres</option>';
+
+    const sortedGenres = Array.from(genreMap.values()).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+    sortedGenres.forEach(g => {
+      const opt = document.createElement('option');
+      opt.value = g;
+      opt.textContent = g;
+      genreFilter.appendChild(opt);
+    });
+
+    // A8 — If the previously selected genre still exists (case-insensitive), restore it; otherwise reset activeGenreFilter = 'ALL'
+    if (currentVal !== 'ALL' && genreMap.has(currentValLower)) {
+      const matchingCased = genreMap.get(currentValLower);
+      genreFilter.value = matchingCased;
+      activeGenreFilter = matchingCased;
+    } else {
+      genreFilter.value = 'ALL';
+      activeGenreFilter = 'ALL';
+    }
+  }
+
+  function applyViewMode(mode, doRender = true) {
+    currentView = mode;
+    try {
+      localStorage.setItem(VIEW_PREF_KEY, mode);
+    } catch (e) {
+      // ignore storage failure
+    }
+
+    if (mode === 'list') {
+      novelsContainer.className = 'novels-list';
+      viewListBtn.classList.add('active');
+      viewGridBtn.classList.remove('active');
+    } else {
+      novelsContainer.className = 'novels-grid';
+      viewGridBtn.classList.add('active');
+      viewListBtn.classList.remove('active');
+    }
+    if (doRender) renderLibrary();
+  }
+
+  // --- Export (Fix #2: use Android.saveJson bridge; blob fallback for browser) ---
+  function exportLibraryJson() {
+    if (library.length === 0) {
+      showToast('Library is empty — nothing to export.', 'error');
+      return;
+    }
+
+    const exportData = { app: 'NovelShelf', version: '1.0', exportedAt: new Date().toISOString(), novels: library };
+    const jsonStr = JSON.stringify(exportData, null, 2);
+    const filename = 'novel-shelf-backup-' + localDateString() + '.json';
+
+    // Fix #2 — if running in the Android WebView with our bridge, use it
+    if (window.Android && typeof window.Android.saveJson === 'function') {
+      // Set up callback before invoking native (A13/B2: signature (success, cancelled))
+      window._onExportResult = function (success, cancelled) {
+        window._onExportResult = null;
+        if (success) {
+          showToast('Library backup saved!', 'success');
+          closeBackupView(true);
+        } else if (cancelled) {
+          showToast('Export cancelled.', 'info');
+        } else {
+          showToast('Export failed.', 'error');
+        }
+      };
+      window.Android.saveJson(filename, jsonStr);
+      return;
+    }
+
+    // Browser fallback: Blob + anchor
+    try {
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showToast('Library backup exported!', 'success');
+      closeBackupView(true);
+    } catch (err) {
+      showToast('Export failed on this device.', 'error');
+    }
+  }
+
+  // Format date helper: YYYY-MM-DD -> DD/MM/YY
+  function formatDateShort(dateStr) {
+    if (!dateStr || typeof dateStr !== 'string') return '';
+    const parts = dateStr.trim().split('-');
+    if (parts.length === 3) {
+      const year = parts[0].slice(-2);
+      const month = parts[1].padStart(2, '0');
+      const day = parts[2].padStart(2, '0');
+      return `${day}/${month}/${year}`;
+    }
+    return dateStr;
+  }
+
+  // --- Export TXT Summary ---
+  function exportLibraryTxt() {
+    if (library.length === 0) {
+      showToast('Library is empty — nothing to export.', 'error');
+      return;
+    }
+
+    const blocks = library.map(novel => {
+      const title = novel.title || 'Untitled';
+      const ch = novel.chaptersRead != null ? novel.chaptersRead : 0;
+
+      const sDate = formatDateShort(novel.started);
+      const fDate = formatDateShort(novel.finished);
+      let dateLine = '';
+      if (sDate && fDate) {
+        dateLine = `${sDate} - ${fDate}`;
+      } else if (sDate) {
+        dateLine = `${sDate} - Present`;
+      } else if (fDate) {
+        dateLine = fDate;
+      } else {
+        dateLine = 'N/A';
+      }
+
+      // Convert 5-star rating scale to 10-point scale: rating * 2
+      const ratingVal = novel.rating != null && novel.rating > 0 ? (novel.rating * 2) : 0;
+      const ratingLine = ratingVal > 0 ? `${Number(ratingVal.toFixed(1))}/10` : 'Unrated';
+      const notesLine = (novel.notes && novel.notes.trim()) ? novel.notes.trim() : 'No notes.';
+
+      return `[ ${title} ]\nCh: ${ch} | Date: ${dateLine}\nRating: ${ratingLine}\nNotes: ${notesLine}`;
+    });
+
+    const txtContent = blocks.join('\n\n') + '\n';
+    const filename = 'novel-shelf-export-' + localDateString() + '.txt';
+
+    if (window.Android && typeof window.Android.saveText === 'function') {
+      window._onExportResult = function (success, cancelled) {
+        window._onExportResult = null;
+        if (success) {
+          showToast('Text summary saved!', 'success');
+          closeBackupView(true);
+        } else if (cancelled) {
+          showToast('Export cancelled.', 'info');
+        } else {
+          showToast('Export failed.', 'error');
+        }
+      };
+      window.Android.saveText(filename, txtContent);
+      return;
+    }
+
+    // Fallback: Browser Blob download
+    try {
+      const blob = new Blob([txtContent], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showToast('Text summary exported!', 'success');
+      closeBackupView(true);
+    } catch (err) {
+      showToast('Export failed on this device.', 'error');
+    }
+  }
+
+  // Fix #11 — normalize an imported novel item (A3, A10)
+  function normalizeImportedNovel(n) {
+    const VALID_STATUSES = new Set(['Reading', 'Plan to Read', 'Completed', 'On Hold', 'Dropped']);
+    const total = n.chaptersTotal ? Math.max(0, parseInt(n.chaptersTotal, 10) || 0) || null : null;
+    let read = Math.max(0, parseInt(n.chaptersRead, 10) || 0);
+    // A10 — clamp read <= total
+    if (total && read > total) {
+      read = total;
+    }
+
+    // A10 — snap rating to nearest 0.5
+    const rawRating = parseFloat(n.rating) || 0;
+    const rating = Math.max(0, Math.min(5, Math.round(rawRating * 2) / 2));
+
+    // A3 — date format validation: keep only if /^\d{4}-\d{2}-\d{2}$/
+    let started = (typeof n.started === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(n.started)) ? n.started : '';
+    let finished = (typeof n.finished === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(n.finished)) ? n.finished : '';
+    let startedEstimated = Boolean(n.startedEstimated);
+    let finishedEstimated = Boolean(n.finishedEstimated);
+
+    // Auto-set & Backfill:
+    // If started is empty, backfill from createdAt if available, otherwise today
+    if (!started) {
+      if (n.createdAt) {
+        started = localDateString(new Date(n.createdAt));
+        startedEstimated = true;
+      } else {
+        started = localDateString();
+      }
+    }
+
+    // If Completed and finished is empty, backfill from updatedAt if available
+    const status = VALID_STATUSES.has(n.status) ? n.status : 'Plan to Read';
+    if (status === 'Completed' && !finished) {
+      if (n.updatedAt) {
+        finished = localDateString(new Date(n.updatedAt));
+        finishedEstimated = true;
+      } else {
+        finished = localDateString();
+      }
+    } else if (status !== 'Completed') {
+      finished = '';
+      finishedEstimated = false;
+    }
+
+    return {
+      id: (n.id && typeof n.id === 'string' && n.id.trim())
+        ? n.id.trim()
+        : 'novel_' + Date.now() + '_' + Math.random().toString(36).slice(2),
+      title: String(n.title || 'Untitled').slice(0, 300),
+      author: String(n.author || '').slice(0, 200),
+      status,
+      chaptersRead: read,
+      chaptersTotal: total,
+      rating,
+      started,
+      finished,
+      startedEstimated,
+      finishedEstimated,
+      source: String(n.source || '').slice(0, 200),
+      link: /^https?:\/\//i.test(n.link || '') ? n.link : '',
+      genre: String(n.genre || '').slice(0, 100),
+      tags: Array.isArray(n.tags) ? n.tags.map(t => String(t).trim()).filter(Boolean) : [],
+      notes: String(n.notes || '').slice(0, 5000),
+      cover: typeof n.cover === 'string' ? n.cover : '',
+      createdAt: Number(n.createdAt) || Date.now(),
+      updatedAt: Number(n.updatedAt) || Date.now(),
+    };
+  }
+
+  function importLibraryJson(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        const raw = Array.isArray(data) ? data : (data.novels || []);
+
+        if (!Array.isArray(raw) || raw.length === 0) {
+          showToast('Invalid backup or no novels found.', 'error');
+          return;
+        }
+
+        // Fix #11 — normalise every item
+        const importedNovels = raw.map(normalizeImportedNovel);
+
+        // Fix #4 — 3-button dialog
+        const choice = await showImportChoiceDialog(
+          `Found ${importedNovels.length} novel${importedNovels.length !== 1 ? 's' : ''} in backup.\n\nMerge = keep yours + add new ones.\nReplace = overwrite your library.`
+        );
+        if (choice === 'cancel') return;
+
+        // A4 — snapshot for rollback
+        const snapshot = JSON.parse(JSON.stringify(library));
+        let successMessage = '';
+
+        if (choice === 'replace') {
+          // A6 — de-duplicate imported ids (keep last)
+          const map = new Map();
+          importedNovels.forEach(n => map.set(n.id, n));
+          library = Array.from(map.values());
+          successMessage = `Restored ${library.length} novels!`;
+        } else {
+          // A6 — Merge: local progress wins on id conflict.
+          // Count actual added novels.
+          const existingIds = new Set(library.map(n => n.id));
+          let addedCount = 0;
+
+          // De-duplicate imported items among themselves (regenerate id for duplicates within import if needed)
+          const seenImportIds = new Set();
+          const dedupedImported = [];
+          importedNovels.forEach(n => {
+            let item = n;
+            if (seenImportIds.has(item.id)) {
+              item = { ...item, id: 'novel_' + Date.now() + '_' + Math.random().toString(36).slice(2) };
+            }
+            seenImportIds.add(item.id);
+            dedupedImported.push(item);
+          });
+
+          // Imported first, then existing library overwrites so local wins
+          const map = new Map();
+          dedupedImported.forEach(n => {
+            if (!existingIds.has(n.id)) {
+              addedCount++;
+            }
+            map.set(n.id, n);
+          });
+          library.forEach(n => map.set(n.id, n)); // local wins!
+          library = Array.from(map.values());
+
+          successMessage = `Merged: ${addedCount} new novels added`;
+        }
+
+        const saved = saveLibrary();
+        if (!saved) {
+          library = snapshot;
+          saveLibrary();
+          return;
+        }
+
+        renderLibrary();
+        updateGenreDropdown();
+        closeBackupView(true);
+        showToast(successMessage, 'success');
+      } catch (err) {
+        console.error(err);
+        showToast('Error reading backup. Make sure it is a valid JSON file.', 'error');
+      }
+    };
+    reader.onerror = () => showToast('Failed to read file.', 'error');
+    reader.readAsText(file);
+  }
+
+  // Fix #3 — guard loadSampleData when library is non-empty
+  async function loadSampleData() {
+    const snapshot = JSON.parse(JSON.stringify(library));
+    if (library.length > 0) {
+      const choice = await showImportChoiceDialog(
+        `You already have ${library.length} novel${library.length !== 1 ? 's' : ''} in your library.\n\nMerge = add sample novels alongside yours.\nReplace = overwrite your library with samples.`
+      );
+      if (choice === 'cancel') return;
+      if (choice === 'replace') {
+        library = JSON.parse(JSON.stringify(SAMPLE_NOVELS));
+      } else {
+        // Merge — don't overwrite existing entries with the same id
+        const map = new Map();
+        JSON.parse(JSON.stringify(SAMPLE_NOVELS)).forEach(n => map.set(n.id, n));
+        library.forEach(n => map.set(n.id, n)); // existing wins
+        library = Array.from(map.values());
+      }
+    } else {
+      library = JSON.parse(JSON.stringify(SAMPLE_NOVELS));
+    }
+    const saved = saveLibrary();
+    if (!saved) {
+      library = snapshot;
+      saveLibrary();
+      return;
+    }
+    renderLibrary();
+    updateGenreDropdown();
+    showToast('Loaded 5 sample novels!', 'success');
+    closeBackupView(true);
+  }
+
+  // --- Toast ---
+  function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = 'toast' + (type === 'success' ? ' toast-success' : type === 'error' ? ' toast-error' : '');
+    const icon = type === 'success' ? '✓' : type === 'error' ? '⚠' : 'ℹ';
+    toast.innerHTML = `<span class="toast-icon">${icon}</span><span>${escHtml(message)}</span>`;
+    toastContainer.appendChild(toast);
+
+    // Limit max toasts
+    const allToasts = toastContainer.querySelectorAll('.toast');
+    if (allToasts.length > 3) allToasts[0].remove();
+
+    setTimeout(() => {
+      toast.classList.add('toast-out');
+      setTimeout(() => toast.remove(), 300);
+    }, 2800);
+  }
+
+  function escHtml(str) {
+    if (str == null) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  // --- Event Listeners ---
+  function setupEventListeners() {
+    if (btnAddNovelTop) btnAddNovelTop.addEventListener('click', openAddModal);
+    if (btnAddNovelEmpty) btnAddNovelEmpty.addEventListener('click', openAddModal);
+
+    // Form
+    if (btnCloseForm) btnCloseForm.addEventListener('click', () => closeFormModal(true));
+    if (btnCancelForm) btnCancelForm.addEventListener('click', () => closeFormModal(true));
+    if (novelForm) novelForm.addEventListener('submit', handleFormSubmit);
+
+    // Stats Screen (Full-page tab)
+    if (btnStatsToggle) btnStatsToggle.addEventListener('click', openStatsView);
+    if (btnBackStats) btnBackStats.addEventListener('click', () => closeStatsView(true));
+    if (statsTimePills) {
+      statsTimePills.addEventListener('click', (e) => {
+        const btn = e.target.closest('.time-pill-btn');
+        if (!btn) return;
+        statsTimePills.querySelectorAll('.time-pill-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        statsTimeFilter = btn.dataset.filter || 'all';
+        updateStatsDashboard();
+      });
+    }
+    if (btnToggleGenres) {
+      btnToggleGenres.addEventListener('click', () => {
+        genresExpanded = !genresExpanded;
+        updateStatsDashboard();
+      });
+    }
+
+    // Backup & Restore Screen (Full-page tab)
+    if (btnBackupMenu) btnBackupMenu.addEventListener('click', openBackupView);
+    if (btnBackBackup) btnBackBackup.addEventListener('click', () => closeBackupView(true));
+    if (btnExportJson) btnExportJson.addEventListener('click', exportLibraryJson);
+    if (btnExportTxt) btnExportTxt.addEventListener('click', exportLibraryTxt);
+    if (importJsonFile) {
+      importJsonFile.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files[0]) importLibraryJson(e.target.files[0]);
+        e.target.value = ''; // reset so same file can be imported again
+      });
+    }
+    if (btnLoadSampleMenu) btnLoadSampleMenu.addEventListener('click', loadSampleData);
+    if (btnLoadSample) btnLoadSample.addEventListener('click', loadSampleData);
+
+    // Search — fix #14: debounce to avoid flickering on every keystroke
+    const debouncedRender = debounce(renderLibrary, 150);
+    searchInput.addEventListener('input', (e) => {
+      searchQuery = e.target.value;
+      btnClearSearch.style.display = searchQuery ? 'block' : 'none';
+      debouncedRender();
+    });
+    btnClearSearch.addEventListener('click', () => {
+      searchInput.value = '';
+      searchQuery = '';
+      btnClearSearch.style.display = 'none';
+      renderLibrary();
+    });
+    btnResetFilters.addEventListener('click', () => {
+      searchInput.value = '';
+      searchQuery = '';
+      btnClearSearch.style.display = 'none';
+      activeStatusFilter = 'ALL';
+      activeGenreFilter = 'ALL';
+      activeSort = 'updated-desc';
+      if (sortFilter) sortFilter.value = 'updated-desc';
+      if (genreFilter) genreFilter.value = 'ALL';
+      statusTabs.querySelectorAll('.status-tab').forEach(t =>
+        t.classList.toggle('active', t.dataset.status === 'ALL')
+      );
+      renderLibrary();
+    });
+
+    // Status tabs
+    statusTabs.addEventListener('click', (e) => {
+      const tab = e.target.closest('.status-tab');
+      if (!tab) return;
+      statusTabs.querySelectorAll('.status-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      activeStatusFilter = tab.dataset.status;
+      renderLibrary();
+    });
+
+    if (genreFilter) genreFilter.addEventListener('change', (e) => { activeGenreFilter = e.target.value; renderLibrary(); });
+    if (sortFilter) sortFilter.addEventListener('change', (e) => { activeSort = e.target.value; renderLibrary(); });
+
+    // View toggles
+    viewGridBtn.addEventListener('click', () => applyViewMode('grid'));
+    viewListBtn.addEventListener('click', () => applyViewMode('list'));
+
+    // ---- Star Rating — Mouse + Touch ----
+    function handleRatingInteract(e) {
+      const val = getRatingFromElement(e.target);
+      if (val !== null) setRating(val);
+    }
+    function handleRatingPreview(e) {
+      const val = getRatingFromElement(e.target);
+      if (val !== null) {
+        ratingValueDisplay.textContent = val.toFixed(1) + ' ★';
+        renderStars(val);
+      }
+    }
+    function handleRatingReset() {
+      renderStars(currentRating);
+      ratingValueDisplay.textContent = currentRating === 0 ? '0.0 ★' : currentRating.toFixed(1) + ' ★';
+    }
+
+    // Mouse
+    starRatingControl.addEventListener('click', handleRatingInteract);
+    starRatingControl.addEventListener('mousemove', handleRatingPreview);
+    starRatingControl.addEventListener('mouseleave', handleRatingReset);
+
+    // Touch (Android)
+    starRatingControl.addEventListener('touchstart', (e) => {
+      ratingTouchActive = true;
+    }, { passive: true });
+    starRatingControl.addEventListener('touchmove', (e) => {
+      if (!ratingTouchActive) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      const el = document.elementFromPoint(touch.clientX, touch.clientY);
+      if (el) {
+        const val = getRatingFromElement(el);
+        if (val !== null) {
+          ratingValueDisplay.textContent = val.toFixed(1) + ' ★';
+          renderStars(val);
+        }
+      }
+    }, { passive: false });
+    starRatingControl.addEventListener('touchend', (e) => {
+      if (!ratingTouchActive) return;
+      ratingTouchActive = false;
+      const touch = e.changedTouches[0];
+      const el = document.elementFromPoint(touch.clientX, touch.clientY);
+      if (el) {
+        const val = getRatingFromElement(el);
+        if (val !== null) setRating(val);
+        else handleRatingReset();
+      } else {
+        handleRatingReset();
+      }
+    }, { passive: true });
+
+    btnClearRating.addEventListener('click', () => setRating(0));
+
+    // Quick date buttons — fix #5: use local date
+    document.querySelectorAll('.btn-quick-date').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const input = document.getElementById(btn.dataset.target);
+        if (input) input.value = localDateString();
+      });
+    });
+
+    // Genre quick pills
+    const genrePills = document.getElementById('genre-quick-pills');
+    if (genrePills) {
+      genrePills.addEventListener('click', (e) => {
+        const pill = e.target.closest('.pill-btn');
+        if (!pill) return;
+        formGenre.value = pill.dataset.genre;
+        // Visually mark active pill
+        genrePills.querySelectorAll('.pill-btn').forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+      });
+    }
+
+    // A13 — sync genre quick pills when typing in formGenre
+    if (formGenre && genrePills) {
+      formGenre.addEventListener('input', () => {
+        const val = formGenre.value.trim().toLowerCase();
+        genrePills.querySelectorAll('.pill-btn').forEach(p => {
+          p.classList.toggle('active', p.dataset.genre.toLowerCase() === val);
+        });
+      });
+    }
+
+    // Reading status quick pills
+    const statusPillsContainer = document.getElementById('status-quick-pills');
+    if (statusPillsContainer) {
+      statusPillsContainer.addEventListener('click', (e) => {
+        const btn = e.target.closest('.status-pill-btn');
+        if (!btn) return;
+        setStatusPill(btn.dataset.status, true); // true = auto-fill dates
+      });
+    }
+
+    // A2 — Smart focus scroll: center field when obscured or near edges
+    if (novelForm) {
+      const entryFields = novelForm.querySelectorAll('input:not([type="hidden"]), select, textarea');
+      entryFields.forEach(field => {
+        field.addEventListener('focus', () => {
+          setTimeout(() => {
+            if (modalNovelForm.style.display === 'none') return;
+            const fieldRect = field.getBoundingClientRect();
+            if (fieldRect.bottom > window.innerHeight - 12 || fieldRect.top < 8) {
+              field.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            }
+          }, 250);
+        });
+      });
+    }
+
+    // Cover photo
+    coverPreviewBox.addEventListener('click', () => {
+      if (coverImgPreview.style.display !== 'block') coverFileInput.click();
+    });
+    coverFileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) handleCoverFile(e.target.files[0]);
+    });
+
+    // A12 — Cover URL input debounced and error handled
+    coverImgPreview.addEventListener('error', () => {
+      // Only handle error if an actual image was being loaded
+      if (coverImgPreview.getAttribute('src')) {
+        showToast("Couldn't load that image", 'error');
+        resetCoverPreview();
+      }
+    });
+
+    const handleCoverUrlChange = debounce(() => {
+      const url = normalizeUrl(coverUrlInput.value);
+      if (url) {
+        setCoverPreview(url);
+      } else if (coverImgPreview.src && !coverImgPreview.src.startsWith('data:')) {
+        resetCoverPreview();
+      }
+    }, 400);
+
+    coverUrlInput.addEventListener('input', handleCoverUrlChange);
+
+    btnRemoveCover.addEventListener('click', (e) => {
+      e.stopPropagation();
+      resetCoverPreview();
+    });
+
+    // Details navigation
+    btnBackShelf.addEventListener('click', () => closeNovelDetails(true));
+    btnDetailEdit.addEventListener('click', () => {
+      if (viewingNovelId) {
+        formOpenedFromDetails = true; // A1 — set flag when opened from details
+        openEditModal(viewingNovelId);
+      }
+    });
+    btnDetailDelete.addEventListener('click', () => {
+      if (viewingNovelId) deleteNovel(viewingNovelId);
+    });
+
+    // History popstate (Android back button & browser back navigation)
+    window.addEventListener('popstate', (e) => {
+      // A9 — Back with confirm dialog open
+      if (confirmDialog && confirmDialog.style.display === 'flex') {
+        if (typeof activeConfirmCancel === 'function') {
+          activeConfirmCancel();
+        }
+        // Restore the current screen state in history so underlying screen doesn't pop
+        const currentScreenState = (modalNovelForm && modalNovelForm.style.display === 'flex')
+          ? { screen: 'form' }
+          : (viewNovelDetails && viewNovelDetails.style.display === 'flex')
+            ? { screen: 'details', id: viewingNovelId }
+            : (viewStats && viewStats.style.display === 'flex')
+              ? { screen: 'stats' }
+              : (viewBackup && viewBackup.style.display === 'flex')
+                ? { screen: 'backup' }
+                : null;
+
+        if (currentScreenState && window.history && window.history.pushState) {
+          window.history.pushState(currentScreenState, '');
+        }
+        return;
+      }
+
+      if (modalNovelForm && modalNovelForm.style.display === 'flex') {
+        closeFormModal(false);
+      } else if (viewNovelDetails && viewNovelDetails.style.display === 'flex') {
+        closeNovelDetails(false);
+      } else if (viewStats && viewStats.style.display === 'flex') {
+        closeStatsView(false);
+      } else if (viewBackup && viewBackup.style.display === 'flex') {
+        closeBackupView(false);
+      }
+    });
+
+    // Escape to close screens / modals
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (confirmDialog && confirmDialog.style.display === 'flex') return;
+        if (modalNovelForm && modalNovelForm.style.display === 'flex') {
+          closeFormModal(true);
+          return;
+        }
+        if (viewNovelDetails && viewNovelDetails.style.display === 'flex') {
+          closeNovelDetails(true);
+          return;
+        }
+        if (viewStats && viewStats.style.display === 'flex') {
+          closeStatsView(true);
+          return;
+        }
+        if (viewBackup && viewBackup.style.display === 'flex') {
+          closeBackupView(true);
+          return;
+        }
+      }
+    });
+
+    // Modal backdrop click and scroll lock
+    // (modalNovelForm is now a dedicated full-page screen)
+  }
+
+  // Boot
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
