@@ -44,6 +44,13 @@ it('formatLocalDate: formats Date to YYYY-MM-DD correctly', () => {
   assert.strictEqual(StatsCalculator.formatLocalDate(d), '2026-05-09');
 });
 
+it('formatDateShort: formats YYYY-MM-DD to DD/MM/YY correctly', () => {
+  assert.strictEqual(StatsCalculator.formatDateShort('2026-05-09'), '09/05/26');
+  assert.strictEqual(StatsCalculator.formatDateShort('2024-11-20'), '20/11/24');
+  assert.strictEqual(StatsCalculator.formatDateShort(''), '');
+  assert.strictEqual(StatsCalculator.formatDateShort(null), '');
+});
+
 it('diffDays: calculates day difference correctly', () => {
   assert.strictEqual(StatsCalculator.diffDays('2026-05-01', '2026-05-11'), 10);
   assert.strictEqual(StatsCalculator.diffDays('2026-05-11', '2026-05-01'), -10);

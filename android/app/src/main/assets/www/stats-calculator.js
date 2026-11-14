@@ -67,6 +67,21 @@
   }
 
   /**
+   * Format date helper: YYYY-MM-DD -> DD/MM/YY
+   */
+  function formatDateShort(dateStr) {
+    if (!dateStr || typeof dateStr !== 'string') return '';
+    const parts = dateStr.trim().split('-');
+    if (parts.length === 3) {
+      const year = parts[0].slice(-2);
+      const month = parts[1].padStart(2, '0');
+      const day = parts[2].padStart(2, '0');
+      return `${day}/${month}/${year}`;
+    }
+    return dateStr;
+  }
+
+  /**
    * Check if a YYYY-MM-DD finished date falls within the time filter.
    * filter: 'all' | 'year' | 'month'
    */
@@ -541,6 +556,7 @@
   return {
     parseLocalDate,
     formatLocalDate,
+    formatDateShort,
     diffDays,
     formatTargetDate,
     isWithinFilter,

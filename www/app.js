@@ -11,13 +11,28 @@
   const STORAGE_KEY = 'novelshelf_library_v1';
   const VIEW_PREF_KEY = 'novelshelf_view_mode';
 
-  // Fix #5 — local date string (avoids UTC-day-off-by-one in IST midnight)
+  // Single source of truth for date helpers (backed by StatsCalculator)
   function localDateString(d) {
+    if (window.StatsCalculator && window.StatsCalculator.formatLocalDate) {
+      return window.StatsCalculator.formatLocalDate(d || new Date());
+    }
     const dt = d || new Date();
     const y = dt.getFullYear();
     const m = String(dt.getMonth() + 1).padStart(2, '0');
     const day = String(dt.getDate()).padStart(2, '0');
     return `${y}-${m}-${day}`;
+  }
+
+  function formatDateShort(dateStr) {
+    if (window.StatsCalculator && window.StatsCalculator.formatDateShort) {
+      return window.StatsCalculator.formatDateShort(dateStr);
+    }
+    if (!dateStr || typeof dateStr !== 'string') return '';
+    const parts = dateStr.trim().split('-');
+    if (parts.length === 3) {
+      return `${parts[2].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[0].slice(-2)}`;
+    }
+    return dateStr;
   }
 
   let library = [];
@@ -598,6 +613,61 @@
     return map[status] || 'status-reading';
   }
 
+  // --- Unified Card Component Helpers (Single Source of Truth) ---
+  function renderCardCoverMarkup(novel) {
+    const title = escHtml(novel.title || 'Novel');
+    const author = escHtml(novel.author || 'Unknown');
+    const genre = escHtml(novel.genre || 'Novel');
+    if (novel.cover) {
+      return `<img class="card-cover-img" src="${escHtml(novel.cover)}" alt="${title}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="cover-art-placeholder" style="display:none;">
+          <span class="placeholder-spine">${genre}</span>
+          <h3 class="placeholder-title">${title}</h3>
+          <span class="placeholder-author">${author}</span>
+        </div>`;
+    }
+    return `<div class="cover-art-placeholder">
+        <span class="placeholder-spine">${genre}</span>
+        <h3 class="placeholder-title">${title}</h3>
+        <span class="placeholder-author">${author}</span>
+      </div>`;
+  }
+
+  function renderCardStatusBadgeMarkup(novel) {
+    const statusClass = getStatusClass(novel.status);
+    return `<span class="status-badge ${statusClass}">${escHtml(novel.status || 'Reading')}</span>`;
+  }
+
+  function renderCardStarsMarkup(novel) {
+    const ratingDisplay = novel.rating > 0 ? novel.rating.toFixed(1) + ' ★' : '—';
+    const starsHtml = renderStarsDisplay(novel.rating || 0);
+    return `<span class="star-rating-pill">${starsHtml}<span class="rating-num">${ratingDisplay}</span></span>`;
+  }
+
+  function renderCardProgressMarkup(novel) {
+    const read = novel.chaptersRead || 0;
+    const total = novel.chaptersTotal || 0;
+    const percent = total > 0 ? Math.min(100, Math.round((read / total) * 100)) : 0;
+    return `<div class="card-progress-wrap">
+      <div class="progress-info">
+        <span>Ch. ${read}${total ? ' / ' + total : ''}</span>
+        <span>${total ? percent + '%' : ''}</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" style="width: ${total ? percent : 0}%"></div>
+      </div>
+    </div>`;
+  }
+
+  function renderCardQuickActionsMarkup(novel) {
+    const source = escHtml(novel.source || '');
+    const title = escHtml(novel.title || 'novel');
+    return `<div class="card-quick-actions">
+      <span class="card-source-label">${source}</span>
+      <button class="btn-quick-chapter" data-action="quick-add" data-id="${escHtml(novel.id)}" aria-label="Add 1 chapter to ${title}">＋1 Ch</button>
+    </div>`;
+  }
+
   function createNovelCard(novel) {
     const card = document.createElement('div');
     card.className = 'novel-card';
@@ -616,58 +686,22 @@
     card.setAttribute('tabindex', '0');
     card.setAttribute('aria-label', `${novel.title} by ${novel.author || 'Unknown Author'}, ${novel.status}`);
 
-    const read = novel.chaptersRead || 0;
-    const total = novel.chaptersTotal || 0;
-    const percent = total > 0 ? Math.min(100, Math.round((read / total) * 100)) : 0;
-    const ratingDisplay = novel.rating > 0 ? novel.rating.toFixed(1) + ' ★' : '—';
-    const statusClass = getStatusClass(novel.status);
-
-    let coverHtml;
-    if (novel.cover) {
-      coverHtml = `<img class="card-cover-img" src="${escHtml(novel.cover)}" alt="${escHtml(novel.title)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-        <div class="cover-art-placeholder" style="display:none;">
-          <span class="placeholder-spine">${escHtml(novel.genre || 'Novel')}</span>
-          <h3 class="placeholder-title">${escHtml(novel.title)}</h3>
-          <span class="placeholder-author">${escHtml(novel.author || 'Unknown')}</span>
-        </div>`;
-    } else {
-      coverHtml = `<div class="cover-art-placeholder">
-          <span class="placeholder-spine">${escHtml(novel.genre || 'Novel')}</span>
-          <h3 class="placeholder-title">${escHtml(novel.title)}</h3>
-          <span class="placeholder-author">${escHtml(novel.author || 'Unknown')}</span>
-        </div>`;
-    }
-
-    // Stars display
-    const starsHtml = renderStarsDisplay(novel.rating || 0);
-
     card.innerHTML = `
       <div class="card-cover-column">
         <div class="card-cover-wrap">
-          ${coverHtml}
+          ${renderCardCoverMarkup(novel)}
         </div>
-        <span class="status-badge ${statusClass}">${escHtml(novel.status || 'Reading')}</span>
+        ${renderCardStatusBadgeMarkup(novel)}
       </div>
       <div class="card-content">
         <h3 class="card-title">${escHtml(novel.title)}</h3>
         <p class="card-author">${escHtml(novel.author || 'Unknown Author')}</p>
         <div class="card-meta-row">
-          <span class="star-rating-pill">${starsHtml}<span class="rating-num">${ratingDisplay}</span></span>
+          ${renderCardStarsMarkup(novel)}
           ${novel.genre ? `<span class="genre-pill">${escHtml(novel.genre)}</span>` : ''}
         </div>
-        <div class="card-progress-wrap">
-          <div class="progress-info">
-            <span>Ch. ${read}${total ? ' / ' + total : ''}</span>
-            <span>${total ? percent + '%' : ''}</span>
-          </div>
-          <div class="progress-track">
-            <div class="progress-fill" style="width: ${total ? percent : 0}%"></div>
-          </div>
-        </div>
-        <div class="card-quick-actions">
-          <span class="card-source-label">${escHtml(novel.source || '')}</span>
-          <button class="btn-quick-chapter" data-action="quick-add" data-id="${escHtml(novel.id)}" aria-label="Add 1 chapter to ${escHtml(novel.title)}">＋1 Ch</button>
-        </div>
+        ${renderCardProgressMarkup(novel)}
+        ${renderCardQuickActionsMarkup(novel)}
       </div>`;
 
     card.addEventListener('click', () => openNovelDetails(novel.id));
@@ -687,6 +721,9 @@
 
     return card;
   }
+
+  // Unified component alias so both grid and list share one implementation
+  const createNovelListItem = createNovelCard;
 
   function renderStarsDisplay(rating) {
     let html = '';
@@ -1778,19 +1815,6 @@
     } catch (err) {
       showToast('Export failed on this device.', 'error');
     }
-  }
-
-  // Format date helper: YYYY-MM-DD -> DD/MM/YY
-  function formatDateShort(dateStr) {
-    if (!dateStr || typeof dateStr !== 'string') return '';
-    const parts = dateStr.trim().split('-');
-    if (parts.length === 3) {
-      const year = parts[0].slice(-2);
-      const month = parts[1].padStart(2, '0');
-      const day = parts[2].padStart(2, '0');
-      return `${day}/${month}/${year}`;
-    }
-    return dateStr;
   }
 
   // --- Export TXT Summary ---
