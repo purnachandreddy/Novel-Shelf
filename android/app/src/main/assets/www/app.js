@@ -1958,6 +1958,16 @@
         let successMessage = '';
 
         if (choice === 'replace') {
+          // Step 2: Explicit confirmation stating how many novels will be deleted
+          if (library.length > 0) {
+            const confirmed = await showConfirm(
+              `Are you sure you want to replace your library? This will delete ${library.length} existing novel${library.length !== 1 ? 's' : ''}.`,
+              'Yes, Replace',
+              'Cancel'
+            );
+            if (!confirmed) return;
+          }
+
           // A6 — de-duplicate imported ids (keep last)
           const map = new Map();
           importedNovels.forEach(n => map.set(n.id, n));
@@ -2024,6 +2034,13 @@
       );
       if (choice === 'cancel') return;
       if (choice === 'replace') {
+        // Step 2: Explicit confirmation stating how many novels will be deleted
+        const confirmed = await showConfirm(
+          `Are you sure you want to replace your library? This will delete ${library.length} existing novel${library.length !== 1 ? 's' : ''}.`,
+          'Yes, Replace',
+          'Cancel'
+        );
+        if (!confirmed) return;
         library = JSON.parse(JSON.stringify(SAMPLE_NOVELS));
       } else {
         // Merge — don't overwrite existing entries with the same id
