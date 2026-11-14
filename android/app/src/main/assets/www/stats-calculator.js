@@ -296,28 +296,51 @@
 
         // Finish date estimate
         let estimatedFinish = null;
-        if (allTimeOverallPace > 0 && total !== null && remaining !== null && remaining > 0) {
-          const daysLeft = Math.ceil(remaining / allTimeOverallPace);
-          const targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + daysLeft);
-          const targetDateFormatted = formatTargetDate(targetDate, now);
-
-          let estimateText = `~${daysLeft} day${daysLeft === 1 ? '' : 's'} left (around ${targetDateFormatted})`;
+        if (total !== null && remaining !== null && remaining > 0) {
           if (isStale) {
-            estimateText += ` • last updated ${daysSinceUpdate}d ago`;
+            estimatedFinish = {
+              daysLeft: null,
+              targetDateFormatted: null,
+              isStale: true,
+              daysSinceUpdate,
+              paceBasisLabel: 'Update your progress for an estimate',
+              text: 'Update your progress for an estimate'
+            };
+          } else {
+            let pace = 0;
+            let paceBasisLabel = '';
+
+            if (daysReading >= 3 && read > 0 && daysSinceUpdate < 14) {
+              pace = read / daysReading;
+              paceBasisLabel = "at this novel's pace";
+            } else if (allTimeOverallPace > 0) {
+              pace = allTimeOverallPace;
+              paceBasisLabel = 'at your usual pace';
+            }
+
+            if (pace > 0) {
+              const daysLeft = Math.ceil(remaining / pace);
+              let targetDateFormatted = null;
+              let estimateText = '';
+
+              if (daysLeft > 365) {
+                estimateText = '1+ year left';
+              } else {
+                const targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + daysLeft);
+                targetDateFormatted = formatTargetDate(targetDate, now);
+                estimateText = `~${daysLeft} day${daysLeft === 1 ? '' : 's'} left (around ${targetDateFormatted})`;
+              }
+
+              estimatedFinish = {
+                daysLeft,
+                targetDateFormatted,
+                isStale: false,
+                daysSinceUpdate,
+                paceBasisLabel,
+                text: estimateText
+              };
+            }
           }
-
-          const paceBasisLabel = allTimeExactCount === 1
-            ? 'based on 1 novel'
-            : `based on ${allTimeExactCount} novels`;
-
-          estimatedFinish = {
-            daysLeft,
-            targetDateFormatted,
-            isStale,
-            daysSinceUpdate,
-            paceBasisLabel,
-            text: estimateText
-          };
         }
 
         return {

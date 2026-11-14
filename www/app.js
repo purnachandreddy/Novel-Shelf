@@ -1649,29 +1649,35 @@
 
         if (paceRecords) {
           paceRecords.innerHTML = '';
-          if (stats.completed.fastest) {
-            const fRow = document.createElement('div');
-            fRow.className = 'pace-record-row';
-            fRow.innerHTML = `
-              <div style="display:flex;align-items:center;min-width:0;flex:1;">
-                <span class="pace-record-tag tag-fastest">Fastest</span>
-                <span class="pace-record-title" title="${escHtml(stats.completed.fastest.title)}">${escHtml(stats.completed.fastest.title)}</span>
-              </div>
-              <span class="pace-record-days">${stats.completed.fastest.days}d (${stats.completed.fastest.chapters} ch)</span>
-            `;
-            paceRecords.appendChild(fRow);
-          }
-          if (stats.completed.longest && (!stats.completed.fastest || stats.completed.longest.days !== stats.completed.fastest.days || stats.completed.longest.title !== stats.completed.fastest.title)) {
-            const lRow = document.createElement('div');
-            lRow.className = 'pace-record-row';
-            lRow.innerHTML = `
-              <div style="display:flex;align-items:center;min-width:0;flex:1;">
-                <span class="pace-record-tag tag-longest">Longest</span>
-                <span class="pace-record-title" title="${escHtml(stats.completed.longest.title)}">${escHtml(stats.completed.longest.title)}</span>
-              </div>
-              <span class="pace-record-days">${stats.completed.longest.days}d (${stats.completed.longest.chapters} ch)</span>
-            `;
-            paceRecords.appendChild(lRow);
+          const completedCount = stats.completed.count || 0;
+          if (completedCount >= 2) {
+            paceRecords.style.display = 'flex';
+            if (stats.completed.fastest) {
+              const fRow = document.createElement('div');
+              fRow.className = 'pace-record-row';
+              fRow.innerHTML = `
+                <div style="display:flex;align-items:center;min-width:0;flex:1;">
+                  <span class="pace-record-tag tag-fastest">Fastest</span>
+                  <span class="pace-record-title" title="${escHtml(stats.completed.fastest.title)}">${escHtml(stats.completed.fastest.title)}</span>
+                </div>
+                <span class="pace-record-days">${stats.completed.fastest.days}d (${stats.completed.fastest.chapters} ch)</span>
+              `;
+              paceRecords.appendChild(fRow);
+            }
+            if (stats.completed.longest && (!stats.completed.fastest || stats.completed.longest.days !== stats.completed.fastest.days || stats.completed.longest.title !== stats.completed.fastest.title)) {
+              const lRow = document.createElement('div');
+              lRow.className = 'pace-record-row';
+              lRow.innerHTML = `
+                <div style="display:flex;align-items:center;min-width:0;flex:1;">
+                  <span class="pace-record-tag tag-longest">Longest</span>
+                  <span class="pace-record-title" title="${escHtml(stats.completed.longest.title)}">${escHtml(stats.completed.longest.title)}</span>
+                </div>
+                <span class="pace-record-days">${stats.completed.longest.days}d (${stats.completed.longest.chapters} ch)</span>
+              `;
+              paceRecords.appendChild(lRow);
+            }
+          } else {
+            paceRecords.style.display = 'none';
           }
         }
       } else {
@@ -1692,9 +1698,9 @@
           col.className = 'monthly-col';
           const heightPct = m.count > 0 ? Math.max(12, Math.round((m.count / maxCount) * 100)) : 0;
           col.innerHTML = `
-            <span class="monthly-col-count" style="${m.count === 0 ? 'opacity:0.3;' : ''}">${m.count}</span>
+            <span class="monthly-col-count" style="${m.count === 0 ? 'opacity:0;visibility:hidden;' : ''}">${m.count > 0 ? m.count : ''}</span>
             <div class="monthly-bar-track">
-              <div class="monthly-bar-fill" style="height:${heightPct}%;${m.count === 0 ? 'opacity:0.15;' : ''}"></div>
+              <div class="monthly-bar-fill" style="height:${heightPct}%;${m.count === 0 ? 'opacity:0.12;min-height:2px;' : ''}"></div>
             </div>
             <span class="monthly-col-label">${escHtml(m.label)}</span>
           `;
@@ -1723,18 +1729,28 @@
           if (n.estimatedFinish) {
             const staleClass = n.estimatedFinish.isStale ? ' stale-estimate' : '';
             estimateHtml = `
-              <div class="reading-item-estimate${staleClass}">
+              <div class="reading-row-estimate${staleClass}">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                <span>${escHtml(n.estimatedFinish.text)} • <small style="opacity:0.8;">${escHtml(n.estimatedFinish.paceBasisLabel)}</small></span>
+                <span>${escHtml(n.estimatedFinish.text)}</span>
               </div>
             `;
           }
 
+          let metaHtml = '';
+          if (n.estimatedFinish && !n.estimatedFinish.isStale && n.estimatedFinish.paceBasisLabel) {
+            metaHtml = `<div class="reading-row-meta"><span>Last updated ${n.daysSinceUpdate === 0 ? 'today' : `${n.daysSinceUpdate}d ago`}</span> • <span>${escHtml(n.estimatedFinish.paceBasisLabel)}</span></div>`;
+          } else if (n.daysSinceUpdate != null) {
+            metaHtml = `<div class="reading-row-meta"><span>Last updated ${n.daysSinceUpdate === 0 ? 'today' : `${n.daysSinceUpdate}d ago`}</span></div>`;
+          }
+
           item.innerHTML = `
             <div class="reading-item-main">
-              <div class="reading-item-title">${escHtml(n.title)}</div>
-              <div class="reading-item-meta">Ch. ${n.chaptersRead}${totalStr}</div>
+              <div class="reading-row-line1">
+                <span class="reading-item-title">${escHtml(n.title)}</span>
+                <span class="reading-item-ch">Ch. ${n.chaptersRead}${totalStr}</span>
+              </div>
               ${estimateHtml}
+              ${metaHtml}
             </div>
             <div class="reading-item-badge-wrap">
               <span class="reading-badge-days">${n.daysReading}d reading</span>
@@ -1768,7 +1784,15 @@
           const row = document.createElement('div');
           row.className = 'genre-row';
           const pct = Math.max(8, Math.round((g.count / maxGenreCount) * 100));
-          const ratingText = g.avgRating ? `★ ${g.avgRating}` : '—';
+
+          let ratingText = '—';
+          if (g.avgRating) {
+            if (g.ratedCount < g.count) {
+              ratingText = `★ ${g.avgRating} · ${g.ratedCount} rated`;
+            } else {
+              ratingText = `★ ${g.avgRating}`;
+            }
+          }
 
           row.innerHTML = `
             <div class="genre-row-header">

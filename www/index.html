@@ -190,12 +190,12 @@
 
           <!-- Time Filter (Applies to completed stats) -->
           <div class="stats-filter-bar">
-            <span class="stats-filter-label">Filter:</span>
             <div class="stats-time-pills" id="stats-time-pills">
-              <button type="button" class="time-pill-btn active" data-filter="all">All Time</button>
-              <button type="button" class="time-pill-btn" data-filter="year">This Year</button>
-              <button type="button" class="time-pill-btn" data-filter="month">This Month</button>
+              <button type="button" class="time-pill-btn active" data-filter="all">All</button>
+              <button type="button" class="time-pill-btn" data-filter="year">Year</button>
+              <button type="button" class="time-pill-btn" data-filter="month">Month</button>
             </div>
+            <span class="stats-filter-note">Genre, Dropped &amp; Top Lists stay all-time</span>
           </div>
 
           <!-- Top Stat Cards (4-grid) -->
@@ -221,8 +221,8 @@
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
               </div>
               <span class="stat-num" id="stat-avg-rating">—</span>
-              <span class="stat-label">Average Rating</span>
-              <span class="stat-subtext" id="stat-avg-rating-sub">from 0 ratings</span>
+              <span class="stat-label">Avg Rating</span>
+              <div class="stat-subtext-block"><span class="stat-subtext" id="stat-avg-rating-sub">from 0 ratings</span></div>
             </div>
 
             <div class="stat-card glass-ring">
@@ -231,7 +231,7 @@
               </div>
               <span class="stat-num" id="stat-chapters-read">0</span>
               <span class="stat-label">Chapters Read</span>
-              <span class="stat-subtext" id="stat-chapters-sub">0 completed • 0 reading</span>
+              <div class="stat-subtext-block"><span class="stat-subtext" id="stat-chapters-sub">0 completed • 0 reading</span></div>
             </div>
           </div>
 
@@ -244,12 +244,12 @@
             <div class="pace-stats-grid">
               <div class="pace-item">
                 <span class="pace-val" id="stat-avg-days">—</span>
-                <span class="pace-label">Avg. Days to Finish</span>
+                <span class="pace-label">AVG DAYS TO FINISH</span>
               </div>
               <div class="pace-item">
                 <span class="pace-val" id="stat-avg-pace">—</span>
-                <span class="pace-label">Avg. Chapters / Day</span>
-                <span class="stat-subtext" id="stat-avg-pace-sub" style="margin-top:4px;"></span>
+                <span class="pace-label">CHAPTERS / DAY</span>
+                <div class="stat-subtext-block"><span class="stat-subtext" id="stat-avg-pace-sub"></span></div>
               </div>
             </div>
             <div class="pace-records" id="pace-records">
