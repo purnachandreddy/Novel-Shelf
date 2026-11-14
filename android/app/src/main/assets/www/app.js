@@ -2525,6 +2525,11 @@
       }
     });
 
+    // Pause ambient background animation when app is in background to save GPU & battery
+    document.addEventListener('visibilitychange', () => {
+      document.body.classList.toggle('ambient-paused', document.hidden);
+    });
+
     // Modal backdrop click and scroll lock
     // (modalNovelForm is now a dedicated full-page screen)
   }
