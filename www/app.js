@@ -989,6 +989,10 @@
   }
 
   function showScreen(name, { push = false, id = null, from = null } = {}) {
+    if (window.Motion && typeof window.Motion.cancelAllCountUps === 'function') {
+      window.Motion.cancelAllCountUps();
+    }
+
     if (activeViewTransition && typeof activeViewTransition.skipTransition === 'function') {
       try { activeViewTransition.skipTransition(); } catch (e) { }
       activeViewTransition = null;
@@ -1033,9 +1037,18 @@
         viewingNovelId = null;
         renderLibrary();
       } else if (name === 'stats') {
-        if (viewStats) viewStats.style.display = 'flex';
+        if (viewStats) {
+          viewStats.style.display = 'flex';
+          const reduced = typeof effectsReduced === 'function' ? effectsReduced() : false;
+          if (!reduced) {
+            viewStats.classList.add('stats-entrance');
+            setTimeout(() => {
+              if (viewStats) viewStats.classList.remove('stats-entrance');
+            }, 850);
+          }
+        }
         viewingNovelId = null;
-        updateStatsDashboard();
+        updateStatsDashboard(true);
         try { window.scrollTo({ top: 0, behavior: 'instant' }); } catch (e) { }
       } else if (name === 'backup') {
         if (viewBackup) viewBackup.style.display = 'flex';
@@ -1525,7 +1538,7 @@
   }
 
   // --- Stats Dashboard ---
-  function updateStatsDashboard() {
+  function updateStatsDashboard(animateNumbers = false) {
     if (!viewStats) return;
 
     const calc = (typeof window !== 'undefined' && window.StatsCalculator)
@@ -1536,18 +1549,45 @@
 
     const now = new Date();
     const stats = calc.computeStats(library, statsTimeFilter, now);
+    const hasMotion = Boolean(window.Motion && typeof window.Motion.countUp === 'function');
 
     // Top Cards
-    if (statTotalNovels) statTotalNovels.textContent = stats.totalNovels;
-    if (statNovelsFinished) statNovelsFinished.textContent = stats.completed.count;
+    if (statTotalNovels) {
+      if (animateNumbers && hasMotion) {
+        window.Motion.countUp(statTotalNovels, stats.totalNovels);
+      } else {
+        statTotalNovels.textContent = stats.totalNovels;
+      }
+    }
+    if (statNovelsFinished) {
+      if (animateNumbers && hasMotion) {
+        window.Motion.countUp(statNovelsFinished, stats.completed.count);
+      } else {
+        statNovelsFinished.textContent = stats.completed.count;
+      }
+    }
 
-    if (statChaptersRead) statChaptersRead.textContent = stats.chapters.total.toLocaleString();
+    if (statChaptersRead) {
+      if (animateNumbers && hasMotion) {
+        window.Motion.countUp(statChaptersRead, stats.chapters.total);
+      } else {
+        statChaptersRead.textContent = stats.chapters.total.toLocaleString();
+      }
+    }
     if (statChaptersSub) {
       statChaptersSub.textContent = `${stats.chapters.inCompleted.toLocaleString()} completed • ${stats.chapters.inReading.toLocaleString()} reading`;
     }
 
     if (statAvgRating) {
-      statAvgRating.textContent = stats.ratings.average ? stats.ratings.average + ' ★' : '—';
+      if (stats.ratings.average) {
+        if (animateNumbers && hasMotion) {
+          window.Motion.countUp(statAvgRating, stats.ratings.average, { suffix: ' ★', decimals: 1 });
+        } else {
+          statAvgRating.textContent = stats.ratings.average + ' ★';
+        }
+      } else {
+        statAvgRating.textContent = '—';
+      }
     }
     if (statAvgRatingSub) {
       statAvgRatingSub.textContent = stats.ratings.totalRated > 0
@@ -1560,8 +1600,28 @@
       const hasCompleted = stats.completed.count > 0 && (stats.completed.avgDaysToFinish !== null || stats.completed.fastest);
       if (hasCompleted) {
         sectionPace.style.display = 'block';
-        if (statAvgDays) statAvgDays.textContent = stats.completed.avgDaysToFinish != null ? `${stats.completed.avgDaysToFinish}d` : '—';
-        if (statAvgPace) statAvgPace.textContent = stats.completed.avgReadingPace != null ? stats.completed.avgReadingPace : '—';
+        if (statAvgDays) {
+          if (stats.completed.avgDaysToFinish != null) {
+            if (animateNumbers && hasMotion) {
+              window.Motion.countUp(statAvgDays, stats.completed.avgDaysToFinish, { suffix: 'd' });
+            } else {
+              statAvgDays.textContent = `${stats.completed.avgDaysToFinish}d`;
+            }
+          } else {
+            statAvgDays.textContent = '—';
+          }
+        }
+        if (statAvgPace) {
+          if (stats.completed.avgReadingPace != null) {
+            if (animateNumbers && hasMotion) {
+              window.Motion.countUp(statAvgPace, stats.completed.avgReadingPace, { decimals: 1 });
+            } else {
+              statAvgPace.textContent = stats.completed.avgReadingPace;
+            }
+          } else {
+            statAvgPace.textContent = '—';
+          }
+        }
         if (statAvgPaceSub) {
           if (stats.completed.avgReadingPace != null && stats.completed.paceBasisCount > 0) {
             statAvgPaceSub.textContent = stats.completed.paceBasisCount === 1
@@ -1737,14 +1797,24 @@
       if (stats.droppedAnalysis) {
         sectionDropped.style.display = 'block';
         if (statDropChapter) {
-          statDropChapter.textContent = stats.droppedAnalysis.avgDroppedChapter != null
-            ? `Ch. ${stats.droppedAnalysis.avgDroppedChapter}`
-            : '—';
+          if (stats.droppedAnalysis.avgDroppedChapter != null) {
+            if (animateNumbers && hasMotion) {
+              window.Motion.countUp(statDropChapter, stats.droppedAnalysis.avgDroppedChapter, { prefix: 'Ch. ' });
+            } else {
+              statDropChapter.textContent = `Ch. ${stats.droppedAnalysis.avgDroppedChapter}`;
+            }
+          } else {
+            statDropChapter.textContent = '—';
+          }
         }
         if (itemDropPct && statDropPct) {
           if (stats.droppedAnalysis.avgDroppedPercentage != null) {
             itemDropPct.style.display = 'flex';
-            statDropPct.textContent = `${stats.droppedAnalysis.avgDroppedPercentage}%`;
+            if (animateNumbers && hasMotion) {
+              window.Motion.countUp(statDropPct, stats.droppedAnalysis.avgDroppedPercentage, { suffix: '%' });
+            } else {
+              statDropPct.textContent = `${stats.droppedAnalysis.avgDroppedPercentage}%`;
+            }
           } else {
             itemDropPct.style.display = 'none';
           }
@@ -1752,7 +1822,11 @@
         if (itemCompletionRate && statCompletionRate) {
           if (stats.droppedAnalysis.completionRate != null) {
             itemCompletionRate.style.display = 'flex';
-            statCompletionRate.textContent = `${stats.droppedAnalysis.completionRate}%`;
+            if (animateNumbers && hasMotion) {
+              window.Motion.countUp(statCompletionRate, stats.droppedAnalysis.completionRate, { suffix: '%' });
+            } else {
+              statCompletionRate.textContent = `${stats.droppedAnalysis.completionRate}%`;
+            }
           } else {
             itemCompletionRate.style.display = 'none';
           }
@@ -2356,7 +2430,7 @@
         statsTimePills.querySelectorAll('.time-pill-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         statsTimeFilter = btn.dataset.filter || 'all';
-        updateStatsDashboard();
+        updateStatsDashboard(true);
       });
     }
     if (btnToggleGenres) {

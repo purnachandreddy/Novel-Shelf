@@ -876,7 +876,8 @@ select option { background: var(--bg-elevated); color: var(--text-primary); }
   background: linear-gradient(180deg, var(--amber-light), var(--amber));
   border-radius: 4px 4px 0 0;
   min-height: 4px;
-  transition: height var(--t-slow) var(--ease-out);
+  transform-origin: bottom center;
+  animation: barScaleY 420ms var(--ease-out-soft) both;
 }
 .monthly-col-count {
   font-size: .72rem;
@@ -1035,7 +1036,8 @@ select option { background: var(--bg-elevated); color: var(--text-primary); }
   height: 100%;
   background: linear-gradient(90deg, var(--amber), var(--amber-light));
   border-radius: var(--r-full);
-  transition: width var(--t-slow) var(--ease-out);
+  transform-origin: left center;
+  animation: barScaleX 420ms var(--ease-out-soft) both;
 }
 .btn-toggle-genres {
   background: none;
@@ -1195,11 +1197,12 @@ select option { background: var(--bg-elevated); color: var(--text-primary); }
   display: flex;
   gap: 2px;
   margin-bottom: 12px;
+  transform-origin: left center;
+  animation: barScaleX 420ms var(--ease-out-soft) both;
 }
 .stacked-segment {
   height: 100%;
   border-radius: 1px;
-  transition: width var(--t-slow) var(--ease-out);
 }
 .status-legend {
   display: grid;
@@ -1245,7 +1248,7 @@ select option { background: var(--bg-elevated); color: var(--text-primary); }
 .rating-bar-row.dimmed { opacity: 0.32; }
 .rating-bar-label { width: 34px; color: var(--text-secondary); font-weight: 600; }
 .rating-bar-track { flex: 1; height: 7px; background: var(--glass-fill); border: 1px solid var(--glass-edge); border-radius: var(--r-full); overflow: hidden; }
-.rating-bar-fill  { height: 100%; background: var(--amber); border-radius: var(--r-full); transition: width var(--t-slow) var(--ease-out); }
+.rating-bar-fill  { height: 100%; background: var(--amber); border-radius: var(--r-full); transform-origin: left center; animation: barScaleX 420ms var(--ease-out-soft) both; }
 .rating-bar-count { width: 22px; text-align: right; color: var(--text-primary); font-weight: 700; }
 .rating-empty-state {
   text-align: center;
@@ -2722,6 +2725,46 @@ textarea { resize: vertical; min-height: 80px; }
     animation-iteration-count: 1 !important;
   }
 }
+
+/* ---- Stats Screen Motion ---- */
+@keyframes barScaleX {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes barScaleY {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+@keyframes statItemEnter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stats-entrance .stat-card,
+.stats-entrance .stats-section {
+  animation: statItemEnter 380ms var(--ease-out-soft) backwards;
+}
+
+.stats-entrance .stats-grid .stat-card:nth-child(1) { animation-delay: 30ms; }
+.stats-entrance .stats-grid .stat-card:nth-child(2) { animation-delay: 60ms; }
+.stats-entrance .stats-grid .stat-card:nth-child(3) { animation-delay: 90ms; }
+.stats-entrance .stats-grid .stat-card:nth-child(4) { animation-delay: 120ms; }
+.stats-entrance #section-pace { animation-delay: 150ms; }
+.stats-entrance #section-monthly { animation-delay: 180ms; }
+.stats-entrance #section-progress { animation-delay: 210ms; }
+.stats-entrance #section-genres { animation-delay: 240ms; }
+.stats-entrance #section-dropped { animation-delay: 270ms; }
+.stats-entrance #section-top-lists { animation-delay: 300ms; }
+.stats-entrance #section-status-dist { animation-delay: 330ms; }
+.stats-entrance #section-rating-dist { animation-delay: 360ms; }
 
 [data-reduced-motion="true"],
 .reduced-effects {

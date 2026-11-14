@@ -348,11 +348,102 @@
     initMotionSystem();
   }
 
+  // --- Count-Up Animation System ---
+  const activeCountUps = new Set();
+
+  function cancelCountUpFor(element) {
+    for (const record of activeCountUps) {
+      if (record.element === element) {
+        record.cancel();
+      }
+    }
+  }
+
+  function cancelAllCountUps() {
+    for (const record of activeCountUps) {
+      record.cancel();
+    }
+    activeCountUps.clear();
+  }
+
+  function countUp(element, targetVal, options = {}) {
+    if (!element) return { cancel: () => {} };
+
+    cancelCountUpFor(element);
+
+    if (targetVal == null || isNaN(targetVal)) {
+      element.textContent = options.fallback || '—';
+      return { cancel: () => {} };
+    }
+
+    const target = Number(targetVal);
+    const prefix = options.prefix || '';
+    const suffix = options.suffix || '';
+    const decimals = typeof options.decimals === 'number'
+      ? options.decimals
+      : (target % 1 !== 0 ? 1 : 0);
+    const formatNumber = options.format !== false;
+
+    function format(val) {
+      const fixed = val.toFixed(decimals);
+      const parts = fixed.split('.');
+      const intPart = formatNumber ? Number(parts[0]).toLocaleString() : parts[0];
+      const decPart = parts[1] !== undefined ? '.' + parts[1] : '';
+      return `${prefix}${intPart}${decPart}${suffix}`;
+    }
+
+    if (effectsReduced() || options.duration === 0 || target === 0) {
+      element.textContent = format(target);
+      return { cancel: () => {} };
+    }
+
+    const duration = Math.min(900, Math.max(200, options.duration || 650));
+    let startTime = null;
+    let animId = null;
+    let cancelled = false;
+
+    const animRecord = {
+      element,
+      cancel() {
+        cancelled = true;
+        if (animId) cancelAnimationFrame(animId);
+        activeCountUps.delete(animRecord);
+      }
+    };
+    activeCountUps.add(animRecord);
+
+    function step(timestamp) {
+      if (cancelled) return;
+      if (!startTime) startTime = timestamp;
+      const elapsed = timestamp - startTime;
+      const progress = Math.min(1, elapsed / duration);
+
+      // ColorOS ease-out-soft curve
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const current = target * eased;
+
+      element.textContent = format(current);
+
+      if (progress < 1) {
+        animId = requestAnimationFrame(step);
+      } else {
+        element.textContent = format(target);
+        activeCountUps.delete(animRecord);
+        if (options.onComplete) options.onComplete();
+      }
+    }
+
+    animId = requestAnimationFrame(step);
+    return animRecord;
+  }
+
   // Global namespace export
   global.Motion = {
     effectsReduced,
     haptic,
     getTokens: getMotionTokens,
-    spring: createSpring
+    spring: createSpring,
+    countUp,
+    cancelAllCountUps
   };
 })(typeof window !== 'undefined' ? window : globalThis);
