@@ -1023,51 +1023,54 @@
       }
     }
 
-    const updateDOM = () => {
-      // Hide all view screens
-      if (viewShelf) viewShelf.style.display = 'none';
-      if (viewStats) viewStats.style.display = 'none';
-      if (viewBackup) viewBackup.style.display = 'none';
-      if (viewNovelDetails) viewNovelDetails.style.display = 'none';
-      if (modalNovelForm) modalNovelForm.style.display = 'none';
+    // Heavy rendering executed BEFORE starting the transition
+    if (name === 'shelf') {
+      viewingNovelId = null;
+      renderLibrary();
+    } else if (name === 'stats') {
+      viewingNovelId = null;
+      updateStatsDashboard(true);
+    } else if (name === 'backup') {
+      viewingNovelId = null;
+    } else if (name === 'details') {
+      const targetId = id || viewingNovelId;
+      if (targetId) {
+        const novel = library.find(n => n.id === targetId);
+        if (novel) {
+          viewingNovelId = targetId;
+          renderNovelDetailsContent(novel);
+        }
+      }
+    }
 
-      // Show the requested view
-      if (name === 'shelf') {
-        if (viewShelf) viewShelf.style.display = '';
-        viewingNovelId = null;
-        renderLibrary();
-      } else if (name === 'stats') {
-        if (viewStats) {
-          viewStats.style.display = 'flex';
-          const reduced = typeof effectsReduced === 'function' ? effectsReduced() : false;
-          if (!reduced) {
-            viewStats.classList.add('stats-entrance');
-            setTimeout(() => {
-              if (viewStats) viewStats.classList.remove('stats-entrance');
-            }, 850);
-          }
+    const allScreens = [
+      { el: viewShelf, name: 'shelf' },
+      { el: viewStats, name: 'stats' },
+      { el: viewBackup, name: 'backup' },
+      { el: viewNovelDetails, name: 'details' },
+      { el: modalNovelForm, name: 'form' }
+    ];
+
+    const updateDOM = () => {
+      allScreens.forEach(({ el, name: screenName }) => {
+        if (!el) return;
+        if (screenName === name) {
+          el.style.display = (name === 'shelf' ? '' : 'flex');
+          el.inert = false;
+        } else {
+          el.style.display = 'none';
+          el.inert = true;
         }
-        viewingNovelId = null;
-        updateStatsDashboard(true);
-        try { window.scrollTo({ top: 0, behavior: 'instant' }); } catch (e) { }
-      } else if (name === 'backup') {
-        if (viewBackup) viewBackup.style.display = 'flex';
-        viewingNovelId = null;
-        try { window.scrollTo({ top: 0, behavior: 'instant' }); } catch (e) { }
-      } else if (name === 'details') {
-        const targetId = id || viewingNovelId;
-        if (targetId) {
-          const novel = library.find(n => n.id === targetId);
-          if (novel) {
-            viewingNovelId = targetId;
-            renderNovelDetailsContent(novel);
-          }
+      });
+
+      if (name === 'stats' && viewStats) {
+        const reduced = typeof effectsReduced === 'function' ? effectsReduced() : false;
+        if (!reduced) {
+          viewStats.classList.add('stats-entrance');
+          setTimeout(() => {
+            if (viewStats) viewStats.classList.remove('stats-entrance');
+          }, 850);
         }
-        if (viewNovelDetails) viewNovelDetails.style.display = 'flex';
-        try { window.scrollTo({ top: 0, behavior: 'instant' }); } catch (e) { }
-      } else if (name === 'form') {
-        if (modalNovelForm) modalNovelForm.style.display = 'flex';
-        try { window.scrollTo({ top: 0, behavior: 'instant' }); } catch (e) { }
       }
 
       currentScreen = name;
@@ -1087,12 +1090,15 @@
 
       updateNativeBackState();
       updateNavState(name);
+      try { window.scrollTo({ top: 0, behavior: 'instant' }); } catch (e) { }
     };
 
-    if (transitionDirection || transitionType || cardCoverEl) {
+    if (canAnimate && (transitionDirection || transitionType || cardCoverEl)) {
       if (transitionDirection) document.documentElement.dataset.transitionDirection = transitionDirection;
       if (transitionType) document.documentElement.dataset.transitionType = transitionType;
       if (cardCoverEl) cardCoverEl.style.viewTransitionName = 'novel-cover';
+
+      let safetyTimer = null;
 
       try {
         const vt = document.startViewTransition(() => {
@@ -1103,7 +1109,15 @@
         });
         activeViewTransition = vt;
 
+        safetyTimer = setTimeout(() => {
+          if (activeViewTransition === vt) {
+            try { vt.skipTransition(); } catch (e) { }
+            activeViewTransition = null;
+          }
+        }, 400);
+
         vt.finished.finally(() => {
+          if (safetyTimer) clearTimeout(safetyTimer);
           delete document.documentElement.dataset.transitionDirection;
           delete document.documentElement.dataset.transitionType;
           const detailCoverBox = document.querySelector('.detail-cover-box');
@@ -1111,6 +1125,7 @@
           if (activeViewTransition === vt) activeViewTransition = null;
         });
       } catch (err) {
+        if (safetyTimer) clearTimeout(safetyTimer);
         delete document.documentElement.dataset.transitionDirection;
         delete document.documentElement.dataset.transitionType;
         if (cardCoverEl) cardCoverEl.style.viewTransitionName = '';
@@ -1178,7 +1193,7 @@
 
     let coverHtml;
     if (novel.cover) {
-      coverHtml = `<img src="${escHtml(novel.cover)}" alt="${escHtml(novel.title)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      coverHtml = `<img src="${escHtml(novel.cover)}" alt="${escHtml(novel.title)}" decoding="async" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
         <div class="cover-art-placeholder" style="display:none;">
           <span class="placeholder-spine">${escHtml(novel.genre || 'Novel')}</span>
           <h3 class="placeholder-title">${escHtml(novel.title)}</h3>

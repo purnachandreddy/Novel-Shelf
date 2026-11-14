@@ -148,7 +148,7 @@
   --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
   --dur-press: 150ms;
-  --dur-move: 320ms;
+  --dur-move: 240ms;
   --t-fast:   100ms;
   --t-normal: 220ms;
   --t-slow:   380ms;
@@ -2046,8 +2046,7 @@ textarea { resize: vertical; min-height: 80px; }
   display: flex;
   flex-direction: column;
   min-height: 100dvh;
-  background: var(--bg-primary);
-  animation: pageSlideIn var(--t-normal) var(--ease-out);
+  background: var(--surface-base) !important;
   width: 100%;
 }
 @keyframes pageSlideIn {
@@ -2366,7 +2365,7 @@ textarea { resize: vertical; min-height: 80px; }
   align-items: center;
   gap: 10px;
   z-index: var(--z-header);
-  transition: transform var(--dur-move) var(--ease-sheet), opacity var(--t-normal) var(--ease-out);
+  transition: transform 150ms var(--ease-sheet), opacity 120ms ease;
   --light-x: 50%;
   --light-y: 50%;
 }
@@ -2374,6 +2373,7 @@ textarea { resize: vertical; min-height: 80px; }
   opacity: 0;
   transform: translateX(-50%) translateY(36px);
   pointer-events: none;
+  transition: transform 150ms var(--ease-sheet), opacity 120ms ease;
 }
 
 .nav-pill {
@@ -2513,28 +2513,11 @@ textarea { resize: vertical; min-height: 80px; }
 }
 
 /* ---- View Transitions API (ColorOS 17 Living Flow) ---- */
-::view-transition-old(app-header),
-::view-transition-new(app-header) {
-  animation: none !important;
-  mix-blend-mode: normal;
-}
-::view-transition-old(floating-nav),
-::view-transition-new(floating-nav) {
-  animation: none !important;
-  mix-blend-mode: normal;
-}
-
-.app-header {
-  view-transition-name: app-header;
-}
-.floating-nav-container {
-  view-transition-name: floating-nav;
-}
-
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation-duration: var(--dur-move);
   animation-timing-function: var(--ease-sheet);
+  mix-blend-mode: normal;
 }
 
 /* Tab Horizontal Slide */
