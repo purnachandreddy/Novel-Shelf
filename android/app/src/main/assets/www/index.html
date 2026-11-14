@@ -34,11 +34,12 @@
   </script>
 </head>
 <body>
+  <!-- Progressive Blur Edge Overlays -->
+  <div class="edge-blur-top" aria-hidden="true"></div>
+  <div class="edge-blur-bottom" aria-hidden="true"></div>
+
   <!-- App Container -->
   <div id="app" class="app-container">
-    <!-- Progressive Blur Edge Overlays -->
-    <div class="edge-blur-top" aria-hidden="true"></div>
-    <div class="edge-blur-bottom" aria-hidden="true"></div>
     
     <!-- Shelf View Screen -->
     <div id="view-shelf" class="view-screen">
@@ -634,48 +635,44 @@
       </div>
     </div>
 
+  </div><!-- /#app -->
 
-
-
-
-    <!-- Floating Bottom Pill Navigation + Split Add Button -->
-    <nav id="floating-bottom-nav" class="floating-nav-container" aria-label="Main Navigation">
-      <div class="nav-pill glass-ring" role="tablist" aria-label="App Sections">
-        <div id="nav-active-indicator" class="nav-active-indicator"></div>
-        <button id="nav-tab-shelf" class="nav-tab-btn active" role="tab" aria-selected="true" aria-controls="view-shelf" data-tab="shelf" data-squish aria-label="Library Shelf">
-          <svg class="nav-tab-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-          <span class="nav-tab-label">Shelf</span>
-        </button>
-        <button id="nav-tab-stats" class="nav-tab-btn" role="tab" aria-selected="false" aria-controls="view-stats" data-tab="stats" data-squish aria-label="Reading Statistics">
-          <svg class="nav-tab-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
-          <span class="nav-tab-label">Stats</span>
-        </button>
-        <button id="nav-tab-backup" class="nav-tab-btn" role="tab" aria-selected="false" aria-controls="view-backup" data-tab="backup" data-squish aria-label="Backup and Settings">
-          <svg class="nav-tab-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-          <span class="nav-tab-label">Backup</span>
-        </button>
-      </div>
-
-      <button id="btn-add-novel-top" class="nav-add-btn glass-ring" aria-label="Add novel" title="Add novel" data-squish>
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+  <!-- Floating Bottom Pill Navigation + Split Add Button -->
+  <nav id="floating-bottom-nav" class="floating-nav-container" aria-label="Main Navigation">
+    <div class="nav-pill glass-ring" role="tablist" aria-label="App Sections">
+      <div id="nav-active-indicator" class="nav-active-indicator"></div>
+      <button id="nav-tab-shelf" class="nav-tab-btn active" role="tab" aria-selected="true" aria-controls="view-shelf" data-tab="shelf" data-squish aria-label="Library Shelf">
+        <svg class="nav-tab-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        <span class="nav-tab-label">Shelf</span>
       </button>
-    </nav>
-
-    <!-- Custom Confirm Dialog (replaces native confirm() for Android) -->
-    <div id="confirm-dialog" class="modal-backdrop" style="display:none;">
-      <div class="confirm-card glass-ring" role="alertdialog" aria-modal="true" aria-labelledby="confirm-message">
-        <p id="confirm-message" class="confirm-message"></p>
-        <div class="confirm-buttons">
-          <button id="btn-confirm-no" class="btn btn-secondary">Cancel</button>
-          <button id="btn-confirm-yes" class="btn btn-danger">Confirm</button>
-        </div>
-      </div>
+      <button id="nav-tab-stats" class="nav-tab-btn" role="tab" aria-selected="false" aria-controls="view-stats" data-tab="stats" data-squish aria-label="Reading Statistics">
+        <svg class="nav-tab-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+        <span class="nav-tab-label">Stats</span>
+      </button>
+      <button id="nav-tab-backup" class="nav-tab-btn" role="tab" aria-selected="false" aria-controls="view-backup" data-tab="backup" data-squish aria-label="Backup and Settings">
+        <svg class="nav-tab-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        <span class="nav-tab-label">Backup</span>
+      </button>
     </div>
 
-    <!-- Toast Notification Container -->
-    <div id="toast-container" class="toast-container" aria-live="polite"></div>
+    <button id="btn-add-novel-top" class="nav-add-btn glass-ring" aria-label="Add novel" title="Add novel" data-squish>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+  </nav>
 
+  <!-- Custom Confirm Dialog (replaces native confirm() for Android) -->
+  <div id="confirm-dialog" class="modal-backdrop" style="display:none;">
+    <div class="confirm-card glass-ring" role="alertdialog" aria-modal="true" aria-labelledby="confirm-message">
+      <p id="confirm-message" class="confirm-message"></p>
+      <div class="confirm-buttons">
+        <button id="btn-confirm-no" class="btn btn-secondary">Cancel</button>
+        <button id="btn-confirm-yes" class="btn btn-danger">Confirm</button>
+      </div>
+    </div>
   </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
   <script src="motion.js"></script>
   <script src="stats-calculator.js"></script>
