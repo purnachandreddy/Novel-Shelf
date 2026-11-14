@@ -2304,6 +2304,55 @@ textarea { resize: vertical; min-height: 80px; }
 }
 .confirm-buttons .btn { min-width: 100px; }
 
+/* ---- Progressive Blur Edge Overlays ---- */
+.edge-blur-top {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(96px + var(--inset-top));
+  pointer-events: none;
+  z-index: calc(var(--z-header) - 1);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  mask-image: linear-gradient(to bottom, black 55%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 55%, transparent 100%);
+  background: linear-gradient(to bottom, rgba(11, 14, 20, 0.72) 0%, rgba(11, 14, 20, 0.3) 60%, transparent 100%);
+}
+
+.edge-blur-bottom {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: calc(88px + var(--inset-bottom));
+  pointer-events: none;
+  z-index: calc(var(--z-header) - 1);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  mask-image: linear-gradient(to top, black 40%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to top, black 40%, transparent 100%);
+  background: linear-gradient(to top, rgba(11, 14, 20, 0.8) 0%, rgba(11, 14, 20, 0.35) 55%, transparent 100%);
+}
+
+/* ---- Living Flow: Contour Glow Ring ---- */
+.glass-ring {
+  position: relative;
+}
+.glass-ring::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.32) 0%, rgba(255, 255, 255, 0.08) 50%, rgba(255, 255, 255, 0.02) 100%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
 /* ---- Floating Pill Navigation + Split Add Button ---- */
 .floating-nav-container {
   position: fixed;
@@ -2315,6 +2364,8 @@ textarea { resize: vertical; min-height: 80px; }
   gap: 10px;
   z-index: var(--z-header);
   transition: transform var(--dur-move) var(--ease-sheet), opacity var(--t-normal) var(--ease-out);
+  --light-x: 50%;
+  --light-y: 50%;
 }
 .floating-nav-container.nav-hidden {
   opacity: 0;
@@ -2345,6 +2396,16 @@ textarea { resize: vertical; min-height: 80px; }
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask-composite: exclude;
   pointer-events: none;
+}
+.nav-pill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle 90px at var(--light-x, 50%) var(--light-y, 50%), rgba(255, 255, 255, 0.12), transparent 70%);
+  pointer-events: none;
+  opacity: 0.85;
+  mix-blend-mode: overlay;
 }
 
 .nav-active-indicator {
@@ -2431,6 +2492,16 @@ textarea { resize: vertical; min-height: 80px; }
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask-composite: exclude;
   pointer-events: none;
+}
+.nav-add-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle 90px at var(--light-x, 50%) var(--light-y, 50%), rgba(255, 255, 255, 0.12), transparent 70%);
+  pointer-events: none;
+  opacity: 0.85;
+  mix-blend-mode: overlay;
 }
 .nav-add-btn:hover {
   background: linear-gradient(135deg, rgba(245, 158, 11, 0.38) 0%, rgba(217, 119, 6, 0.22) 100%);
@@ -2700,7 +2771,23 @@ textarea { resize: vertical; min-height: 80px; }
 [data-reduced-motion="true"] .nav-pill::before,
 [data-reduced-motion="true"] .nav-add-btn::before,
 .reduced-effects .nav-pill::before,
-.reduced-effects .nav-add-btn::before {
+.reduced-effects .nav-add-btn::before,
+[data-reduced-motion="true"] .glass-ring::before,
+.reduced-effects .glass-ring::before {
+  display: none !important;
+}
+
+[data-reduced-motion="true"] .edge-blur-top,
+[data-reduced-motion="true"] .edge-blur-bottom,
+.reduced-effects .edge-blur-top,
+.reduced-effects .edge-blur-bottom {
+  display: none !important;
+}
+
+[data-reduced-motion="true"] .nav-pill::after,
+[data-reduced-motion="true"] .nav-add-btn::after,
+.reduced-effects .nav-pill::after,
+.reduced-effects .nav-add-btn::after {
   display: none !important;
 }
 [data-reduced-motion="true"] .nav-active-indicator,

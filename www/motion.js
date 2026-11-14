@@ -304,10 +304,48 @@
     window.addEventListener('scroll', handleScroll, { passive: true, capture: true });
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initSquish);
-  } else {
+  // --- Ambient Light Position Tracking ---
+  let lightRafId = null;
+  let lastPointerX = 0;
+  let lastPointerY = 0;
+
+  function updateLightPosition() {
+    lightRafId = null;
+    if (effectsReduced()) return;
+    const nav = document.getElementById('floating-bottom-nav');
+    if (!nav || nav.classList.contains('nav-hidden')) return;
+
+    const rect = nav.getBoundingClientRect();
+    if (rect.height === 0 || rect.width === 0) return;
+
+    // Check if pointer is near the bottom nav
+    if (lastPointerY >= rect.top - 80 && lastPointerY <= rect.bottom + 80 &&
+        lastPointerX >= rect.left - 80 && lastPointerX <= rect.right + 80) {
+      const lx = Math.max(0, Math.min(100, ((lastPointerX - rect.left) / rect.width) * 100));
+      const ly = Math.max(0, Math.min(100, ((lastPointerY - rect.top) / rect.height) * 100));
+      nav.style.setProperty('--light-x', `${lx.toFixed(1)}%`);
+      nav.style.setProperty('--light-y', `${ly.toFixed(1)}%`);
+    }
+  }
+
+  function handleLightPointerMove(e) {
+    if (effectsReduced()) return;
+    lastPointerX = e.clientX;
+    lastPointerY = e.clientY;
+    if (!lightRafId) {
+      lightRafId = requestAnimationFrame(updateLightPosition);
+    }
+  }
+
+  function initMotionSystem() {
     initSquish();
+    document.addEventListener('pointermove', handleLightPointerMove, { passive: true });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initMotionSystem);
+  } else {
+    initMotionSystem();
   }
 
   // Global namespace export

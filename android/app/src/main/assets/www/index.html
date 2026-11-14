@@ -36,6 +36,9 @@
 <body>
   <!-- App Container -->
   <div id="app" class="app-container">
+    <!-- Progressive Blur Edge Overlays -->
+    <div class="edge-blur-top" aria-hidden="true"></div>
+    <div class="edge-blur-bottom" aria-hidden="true"></div>
     
     <!-- Shelf View Screen -->
     <div id="view-shelf" class="view-screen">
@@ -201,7 +204,7 @@
 
           <!-- Top Stat Cards (4-grid) -->
           <div class="stats-grid">
-            <div class="stat-card">
+            <div class="stat-card glass-ring">
               <div class="stat-card-icon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
               </div>
@@ -209,7 +212,7 @@
               <span class="stat-label">Total Novels</span>
             </div>
 
-            <div class="stat-card">
+            <div class="stat-card glass-ring">
               <div class="stat-card-icon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
               </div>
@@ -217,7 +220,7 @@
               <span class="stat-label">Completed</span>
             </div>
 
-            <div class="stat-card">
+            <div class="stat-card glass-ring">
               <div class="stat-card-icon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
               </div>
@@ -226,7 +229,7 @@
               <span class="stat-subtext" id="stat-avg-rating-sub">from 0 ratings</span>
             </div>
 
-            <div class="stat-card">
+            <div class="stat-card glass-ring">
               <div class="stat-card-icon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-6"/></svg>
               </div>
@@ -637,7 +640,7 @@
 
     <!-- Floating Bottom Pill Navigation + Split Add Button -->
     <nav id="floating-bottom-nav" class="floating-nav-container" aria-label="Main Navigation">
-      <div class="nav-pill" role="tablist" aria-label="App Sections">
+      <div class="nav-pill glass-ring" role="tablist" aria-label="App Sections">
         <div id="nav-active-indicator" class="nav-active-indicator"></div>
         <button id="nav-tab-shelf" class="nav-tab-btn active" role="tab" aria-selected="true" aria-controls="view-shelf" data-tab="shelf" data-squish aria-label="Library Shelf">
           <svg class="nav-tab-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
@@ -653,14 +656,14 @@
         </button>
       </div>
 
-      <button id="btn-add-novel-top" class="nav-add-btn" aria-label="Add novel" title="Add novel" data-squish>
+      <button id="btn-add-novel-top" class="nav-add-btn glass-ring" aria-label="Add novel" title="Add novel" data-squish>
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       </button>
     </nav>
 
     <!-- Custom Confirm Dialog (replaces native confirm() for Android) -->
     <div id="confirm-dialog" class="modal-backdrop" style="display:none;">
-      <div class="confirm-card" role="alertdialog" aria-modal="true" aria-labelledby="confirm-message">
+      <div class="confirm-card glass-ring" role="alertdialog" aria-modal="true" aria-labelledby="confirm-message">
         <p id="confirm-message" class="confirm-message"></p>
         <div class="confirm-buttons">
           <button id="btn-confirm-no" class="btn btn-secondary">Cancel</button>
