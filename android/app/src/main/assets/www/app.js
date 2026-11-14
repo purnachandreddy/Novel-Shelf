@@ -1235,8 +1235,9 @@
     reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
-        const MAX_W = 500;
-        const MAX_H = 750;
+        // Step 3: Cap longest side to ~300x450 to conserve localStorage quota
+        const MAX_W = 300;
+        const MAX_H = 450;
         let w = img.width;
         let h = img.height;
 
@@ -1262,7 +1263,7 @@
         ctx.fillRect(0, 0, w, h);
         ctx.drawImage(img, 0, 0, w, h);
 
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.70);
         setCoverPreview(dataUrl);
         coverUrlInput.value = '';
       };
