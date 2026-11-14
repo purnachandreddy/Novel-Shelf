@@ -374,7 +374,7 @@
 
       <div class="details-page-body">
         <div class="backup-tab-container">
-          <p class="backup-desc">All your novels and reading history are stored securely offline on this device. You can export a backup file or restore from one anytime.</p>
+          <p class="backup-desc">Your library is stored only on this device. Uninstalling the app or clearing its data deletes it, so export a backup regularly.</p>
 
           <div class="backup-card">
             <div class="backup-card-info">
@@ -417,10 +417,13 @@
               <h3>Reduce Effects</h3>
               <p>Disable blurs, ambient background glow, spring animations, and view transitions for solid surfaces and maximum battery life.</p>
             </div>
-            <label class="toggle-switch" aria-label="Toggle reduce effects">
-              <input type="checkbox" id="toggle-reduce-effects">
-              <span class="toggle-slider"></span>
-            </label>
+            <div class="toggle-control-group">
+              <span id="toggle-reduce-effects-status" class="toggle-status-text">Off</span>
+              <label class="toggle-switch" aria-label="Toggle reduce effects">
+                <input type="checkbox" id="toggle-reduce-effects">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
           </div>
         </div>
       </div>

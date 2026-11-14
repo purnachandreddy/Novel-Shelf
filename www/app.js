@@ -2507,13 +2507,22 @@
 
     // Reduce Effects Setting Toggle
     const toggleReduceEffects = document.getElementById('toggle-reduce-effects');
+    const toggleReduceEffectsStatus = document.getElementById('toggle-reduce-effects-status');
+    const updateToggleStatusLabel = (isChecked) => {
+      if (toggleReduceEffectsStatus) {
+        toggleReduceEffectsStatus.textContent = isChecked ? 'On' : 'Off';
+        toggleReduceEffectsStatus.classList.toggle('active', Boolean(isChecked));
+      }
+    };
     if (toggleReduceEffects) {
       const isCurrentlyReduced = (typeof window.effectsReduced === 'function')
         ? window.effectsReduced()
         : document.documentElement.classList.contains('reduced-effects');
       toggleReduceEffects.checked = isCurrentlyReduced;
+      updateToggleStatusLabel(isCurrentlyReduced);
       toggleReduceEffects.addEventListener('change', () => {
         const isChecked = toggleReduceEffects.checked;
+        updateToggleStatusLabel(isChecked);
         try {
           localStorage.setItem('novelshelf_reduce_effects', String(isChecked));
         } catch (e) { }

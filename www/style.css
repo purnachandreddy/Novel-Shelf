@@ -173,6 +173,26 @@
   box-sizing: border-box;
   margin: 0; padding: 0;
   -webkit-tap-highlight-color: transparent;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
 }
 
 :focus-visible {
@@ -2746,7 +2766,25 @@ textarea { resize: vertical; min-height: 80px; }
 .toast-success { border-color: rgba(16,185,129,.4); }
 .toast-error   { border-color: rgba(239,68,68,.4); }
 
-/* ---- Settings Toggle Switch ---- */
+/* ---- Settings Toggle Switch & Status ---- */
+.toggle-control-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.toggle-status-text {
+  font-size: .8rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  min-width: 24px;
+  text-align: right;
+  transition: color var(--t-fast);
+}
+.toggle-status-text.active {
+  color: var(--amber-light);
+}
+
 .toggle-switch {
   position: relative;
   display: inline-block;
@@ -2783,12 +2821,13 @@ textarea { resize: vertical; min-height: 80px; }
   box-shadow: var(--shadow-sm);
 }
 .toggle-switch input:checked + .toggle-slider {
-  background: var(--amber-dim);
-  border-color: var(--amber);
+  background: var(--amber);
+  border-color: var(--amber-light);
+  box-shadow: 0 0 12px var(--amber-glow);
 }
 .toggle-switch input:checked + .toggle-slider::before {
   transform: translateX(20px);
-  background: var(--amber-light);
+  background: #ffffff;
 }
 .toggle-switch input:focus-visible + .toggle-slider {
   box-shadow: var(--focus-ring);
