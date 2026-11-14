@@ -31,6 +31,7 @@ class MainActivity : AppCompatActivity() {
 
     // ── File chooser (cover images + JSON restore) ──────────────────────────
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
+    private var currentInsetsJs: String? = null
 
     private val filePickerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -126,11 +127,27 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Fix #8 — include IME inset so keyboard doesn't cover the form
-        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
+        // System Insets bridge: WebView draws edge-to-edge behind system bars, passing insets to CSS variables
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             val ime  = insets.getInsets(WindowInsetsCompat.Type.ime())
-            v.setPadding(bars.left, bars.top, bars.right, maxOf(bars.bottom, ime.bottom))
+            val density = resources.displayMetrics.density
+            val topPx    = (bars.top / density).toInt()
+            val bottomPx = (bars.bottom / density).toInt()
+            val leftPx   = (bars.left / density).toInt()
+            val rightPx  = (bars.right / density).toInt()
+            val imePx    = (ime.bottom / density).toInt()
+
+            val js = """
+                document.documentElement.style.setProperty('--inset-top', '${topPx}px');
+                document.documentElement.style.setProperty('--inset-bottom', '${bottomPx}px');
+                document.documentElement.style.setProperty('--inset-left', '${leftPx}px');
+                document.documentElement.style.setProperty('--inset-right', '${rightPx}px');
+                document.documentElement.style.setProperty('--ime-height', '${imePx}px');
+            """.trimIndent().replace("\n", " ")
+
+            currentInsetsJs = js
+            binding.webView.evaluateJavascript(js, null)
             insets
         }
 
@@ -184,6 +201,13 @@ class MainActivity : AppCompatActivity() {
         webView.addJavascriptInterface(AndroidBridge(), "Android")
 
         webView.webViewClient = object : WebViewClientCompat() {
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+                currentInsetsJs?.let { js ->
+                    view?.evaluateJavascript(js, null)
+                }
+            }
+
             override fun shouldInterceptRequest(
                 view: WebView,
                 request: WebResourceRequest
