@@ -45,74 +45,74 @@
     <div id="view-shelf" class="view-screen">
       <!-- Top Header -->
       <header class="app-header">
-      <div class="header-main">
-        <div class="brand">
-          <img src="logo-small.png" class="brand-icon" alt="Novel Shelf" width="34" height="34">
-          <div class="brand-text">
-            <h1 class="brand-title">Novel Shelf</h1>
-            <span class="brand-subtitle">Reading Tracker</span>
+        <div class="header-main">
+          <div class="brand">
+            <img src="logo-small.png" class="brand-icon" alt="Novel Shelf" width="34" height="34">
+            <div class="brand-text">
+              <h1 class="brand-title">Novel Shelf</h1>
+              <span class="brand-subtitle">Reading Tracker</span>
+            </div>
+          </div>
+
+          <div class="header-actions">
+            <div class="view-toggle">
+              <button id="view-grid-btn" class="toggle-btn active" title="Shelf Grid View" aria-label="Grid View">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
+              </button>
+              <button id="view-list-btn" class="toggle-btn" title="Detailed List View" aria-label="List View">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+              </button>
+            </div>
           </div>
         </div>
 
-        <div class="header-actions">
-          <div class="view-toggle">
-            <button id="view-grid-btn" class="toggle-btn active" title="Shelf Grid View" aria-label="Grid View">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
-            </button>
-            <button id="view-list-btn" class="toggle-btn" title="Detailed List View" aria-label="List View">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Search Toolbar -->
-      <div class="toolbar">
+        <!-- Sticky Search Box -->
         <div class="search-box">
           <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
           <input type="text" id="search-input" placeholder="Search by title, author, genre, tag..." autocomplete="off">
           <button id="btn-clear-search" class="clear-btn" style="display:none;" aria-label="Clear search">✕</button>
         </div>
-        <!-- Fix #9 — sort & genre filter row -->
-        <div class="filter-row">
-          <select id="sort-filter" class="filter-select" aria-label="Sort order">
-            <option value="updated-desc">Recently Updated</option>
-            <option value="rating-desc">Highest Rated</option>
-            <option value="title-asc">Title A–Z</option>
-            <option value="progress-desc">Most Progress</option>
-            <option value="chapters-desc">Most Chapters</option>
-          </select>
-          <select id="genre-filter" class="filter-select" aria-label="Filter by genre">
-            <option value="ALL">All Genres</option>
-          </select>
+      </header>
+
+      <!-- Main Content Area -->
+      <main class="main-content" id="main-content">
+        <!-- Scrollable Shelf Controls (Sort, Genre, Status Tabs) -->
+        <div class="shelf-controls">
+          <div class="filter-row">
+            <select id="sort-filter" class="filter-select" aria-label="Sort order">
+              <option value="updated-desc">Recently Updated</option>
+              <option value="rating-desc">Highest Rated</option>
+              <option value="title-asc">Title A–Z</option>
+              <option value="progress-desc">Most Progress</option>
+              <option value="chapters-desc">Most Chapters</option>
+            </select>
+            <select id="genre-filter" class="filter-select" aria-label="Filter by genre">
+              <option value="ALL">All Genres</option>
+            </select>
+          </div>
+
+          <!-- Status Tabs Bar -->
+          <nav class="status-tabs" id="status-tabs" aria-label="Reading Statuses">
+            <button class="status-tab active" data-status="ALL">
+              All <span class="tab-badge" id="count-all">0</span>
+            </button>
+            <button class="status-tab" data-status="Reading">
+              Reading <span class="tab-badge" id="count-reading">0</span>
+            </button>
+            <button class="status-tab" data-status="Plan to Read">
+              Plan to Read <span class="tab-badge" id="count-plan">0</span>
+            </button>
+            <button class="status-tab" data-status="Completed">
+              Completed <span class="tab-badge" id="count-completed">0</span>
+            </button>
+            <button class="status-tab" data-status="On Hold">
+              On Hold <span class="tab-badge" id="count-onhold">0</span>
+            </button>
+            <button class="status-tab" data-status="Dropped">
+              Dropped <span class="tab-badge" id="count-dropped">0</span>
+            </button>
+          </nav>
         </div>
-      </div>
-
-      <!-- Status Tabs Bar -->
-      <nav class="status-tabs" id="status-tabs" aria-label="Reading Statuses">
-        <button class="status-tab active" data-status="ALL">
-          All <span class="tab-badge" id="count-all">0</span>
-        </button>
-        <button class="status-tab" data-status="Reading">
-          Reading <span class="tab-badge" id="count-reading">0</span>
-        </button>
-        <button class="status-tab" data-status="Plan to Read">
-          Plan to Read <span class="tab-badge" id="count-plan">0</span>
-        </button>
-        <button class="status-tab" data-status="Completed">
-          Completed <span class="tab-badge" id="count-completed">0</span>
-        </button>
-        <button class="status-tab" data-status="On Hold">
-          On Hold <span class="tab-badge" id="count-onhold">0</span>
-        </button>
-        <button class="status-tab" data-status="Dropped">
-          Dropped <span class="tab-badge" id="count-dropped">0</span>
-        </button>
-      </nav>
-    </header>
-
-    <!-- Main Content Area -->
-    <main class="main-content" id="main-content">
       
 
 
@@ -181,13 +181,8 @@
 
     <!-- Reading Statistics Full-Page Tab View -->
     <div id="view-stats" class="view-screen details-page-view" style="display:none;">
-      <header class="details-topbar">
-        <button id="btn-back-stats" class="btn-back" aria-label="Back to Shelf">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-          <span>Shelf</span>
-        </button>
-        <h2 class="details-header-title">Reading Statistics</h2>
-        <div style="width: 48px;"></div>
+      <header class="details-topbar root-tab-topbar">
+        <h2 class="details-header-title root-header-title">Reading Statistics</h2>
       </header>
 
       <div class="details-page-body">
@@ -373,13 +368,8 @@
 
     <!-- Backup & Restore Full-Page Tab View -->
     <div id="view-backup" class="view-screen details-page-view" style="display:none;">
-      <header class="details-topbar">
-        <button id="btn-back-backup" class="btn-back" aria-label="Back to Shelf">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-          <span>Shelf</span>
-        </button>
-        <h2 class="details-header-title">Backup & Restore</h2>
-        <div style="width: 48px;"></div>
+      <header class="details-topbar root-tab-topbar">
+        <h2 class="details-header-title root-header-title">Backup & Restore</h2>
       </header>
 
       <div class="details-page-body">
