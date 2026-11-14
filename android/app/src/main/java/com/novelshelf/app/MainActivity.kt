@@ -149,6 +149,7 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     private fun setupWebView(webView: WebView, assetLoader: WebViewAssetLoader) {
         webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+        // Matches CSS --surface-base (#0B0E14) in www/style.css and @color/bg_primary in themes.xml
         webView.setBackgroundColor(android.graphics.Color.parseColor("#0B0E14"))
 
         val settings = webView.settings
