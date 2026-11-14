@@ -292,7 +292,30 @@
   const btnResetFilters = document.getElementById('btn-reset-filters');
   const toastContainer = document.getElementById('toast-container');
 
+  // Floating Bottom Navigation
+  const floatingNav = document.getElementById('floating-bottom-nav');
+  const navIndicator = document.getElementById('nav-active-indicator');
+
   // --- Navigation & Native Back Bridge ---
+  function updateNavState(activeScreen) {
+    if (!floatingNav) return;
+    if (isRootTab(activeScreen)) {
+      floatingNav.classList.remove('nav-hidden');
+      const tabs = floatingNav.querySelectorAll('.nav-tab-btn');
+      tabs.forEach(tab => {
+        const isSelected = tab.dataset.tab === activeScreen;
+        tab.classList.toggle('active', isSelected);
+        tab.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+        if (isSelected && navIndicator) {
+          const leftOffset = tab.offsetLeft;
+          navIndicator.style.transform = `translateX(${leftOffset}px)`;
+          navIndicator.style.width = `${tab.offsetWidth}px`;
+        }
+      });
+    } else {
+      floatingNav.classList.add('nav-hidden');
+    }
+  }
   function canHandleBack() {
     const isConfirmOpen = !!(confirmDialog && confirmDialog.style.display === 'flex');
     return isConfirmOpen || currentScreen !== 'shelf';
@@ -394,6 +417,7 @@
       }
     } catch (e) { }
     updateNativeBackState();
+    updateNavState('shelf');
   }
 
   // --- Storage ---
@@ -1018,6 +1042,7 @@
     }
 
     updateNativeBackState();
+    updateNavState(name);
   }
 
   // --- Details Tab (Full-Page View) ---
@@ -2314,6 +2339,32 @@
         showToast(isChecked ? 'Reduce effects enabled' : 'Full visual effects enabled', 'info');
       });
     }
+
+    // Floating Bottom Navigation Tabs
+    if (floatingNav) {
+      floatingNav.addEventListener('click', (e) => {
+        const tabBtn = e.target.closest('.nav-tab-btn');
+        if (tabBtn && tabBtn.dataset.tab) {
+          if (window.Motion) Motion.haptic('tick');
+          showScreen(tabBtn.dataset.tab);
+        }
+      });
+    }
+
+    if (searchInput && floatingNav) {
+      searchInput.addEventListener('focus', () => {
+        floatingNav.classList.add('nav-hidden');
+      });
+      searchInput.addEventListener('blur', () => {
+        if (isRootTab(currentScreen)) {
+          floatingNav.classList.remove('nav-hidden');
+        }
+      });
+    }
+
+    window.addEventListener('resize', () => {
+      updateNavState(currentScreen);
+    });
 
     // Search — fix #14: debounce to avoid flickering on every keystroke
     const debouncedRender = debounce(renderLibrary, 150);
