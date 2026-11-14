@@ -417,6 +417,79 @@ it('computeStats: time filter affects finished stats while genre, dropped, and t
   assert.strictEqual(statsMonth.topLists.highestRated[0].title, 'Old Novel');
 });
 
+// 10. Step 1: Safe Load Storage Validation Logic
+function simulateLoadLibrary(storedValue) {
+  let library = [];
+  let recoveryMode = false;
+  let rawCorruptedStorage = null;
+
+  if (storedValue === null || storedValue === '') {
+    library = [];
+    recoveryMode = false;
+    rawCorruptedStorage = null;
+  } else {
+    try {
+      const parsed = JSON.parse(storedValue);
+      if (!Array.isArray(parsed)) {
+        recoveryMode = true;
+        rawCorruptedStorage = storedValue;
+        library = [];
+      } else {
+        library = parsed.filter(item => typeof item === 'object' && item !== null && typeof item.id === 'string');
+        recoveryMode = false;
+        rawCorruptedStorage = null;
+      }
+    } catch (e) {
+      recoveryMode = true;
+      rawCorruptedStorage = storedValue;
+      library = [];
+    }
+  }
+  return { library, recoveryMode, rawCorruptedStorage };
+}
+
+it('safeLoad: handles corrupted JSON by preserving raw string and entering recovery mode', () => {
+  const badJson = '{"title": "Broken, incomplete...';
+  const res = simulateLoadLibrary(badJson);
+  assert.strictEqual(res.recoveryMode, true);
+  assert.strictEqual(res.rawCorruptedStorage, badJson);
+  assert.strictEqual(res.library.length, 0);
+});
+
+it('safeLoad: handles non-array JSON by preserving raw string and entering recovery mode', () => {
+  const objectJson = '{"novel": 123}';
+  const res = simulateLoadLibrary(objectJson);
+  assert.strictEqual(res.recoveryMode, true);
+  assert.strictEqual(res.rawCorruptedStorage, objectJson);
+  assert.strictEqual(res.library.length, 0);
+
+  const primitiveJson = '42';
+  const res2 = simulateLoadLibrary(primitiveJson);
+  assert.strictEqual(res2.recoveryMode, true);
+  assert.strictEqual(res2.rawCorruptedStorage, '42');
+});
+
+it('safeLoad: handles empty string and null gracefully without entering recovery mode', () => {
+  const resNull = simulateLoadLibrary(null);
+  assert.strictEqual(resNull.recoveryMode, false);
+  assert.strictEqual(resNull.rawCorruptedStorage, null);
+  assert.strictEqual(resNull.library.length, 0);
+
+  const resEmpty = simulateLoadLibrary('');
+  assert.strictEqual(resEmpty.recoveryMode, false);
+  assert.strictEqual(resEmpty.rawCorruptedStorage, null);
+  assert.strictEqual(resEmpty.library.length, 0);
+});
+
+it('safeLoad: parses valid array JSON without entering recovery mode', () => {
+  const validJson = JSON.stringify([{ id: 'nov_1', title: 'Test Novel' }]);
+  const res = simulateLoadLibrary(validJson);
+  assert.strictEqual(res.recoveryMode, false);
+  assert.strictEqual(res.rawCorruptedStorage, null);
+  assert.strictEqual(res.library.length, 1);
+  assert.strictEqual(res.library[0].id, 'nov_1');
+});
+
 console.log(`\nTests finished: ${passed} passed, ${failed} failed.`);
 if (failed > 0) {
   process.exit(1);

@@ -39,6 +39,10 @@
   // A9 — cancel function for the active confirm dialog
   let activeConfirmCancel = null;
 
+  // Step 1: Storage recovery mode
+  let recoveryMode = false;
+  let rawCorruptedStorage = null;
+
   // Fix #14 — track which card IDs have already been animated
   const _animatedCardIds = new Set();
 
@@ -349,18 +353,37 @@
   function loadLibrary() {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
-      const parsed = stored ? JSON.parse(stored) : [];
-      // A5 — guard against corrupt storage (non-array, plain object, primitive)
-      if (!Array.isArray(parsed)) {
+      if (stored === null || stored === '') {
         library = [];
+        recoveryMode = false;
+        rawCorruptedStorage = null;
       } else {
-        library = parsed
-          .filter(item => typeof item === 'object' && item !== null && typeof item.id === 'string')
-          .map(normalizeImportedNovel);
+        const parsed = JSON.parse(stored);
+        // Guard against corrupt storage (non-array, plain object, primitive)
+        if (!Array.isArray(parsed)) {
+          console.error('Storage contains non-array JSON:', parsed);
+          recoveryMode = true;
+          rawCorruptedStorage = stored;
+          library = [];
+          setTimeout(showRecoveryDialog, 100);
+        } else {
+          library = parsed
+            .filter(item => typeof item === 'object' && item !== null && typeof item.id === 'string')
+            .map(normalizeImportedNovel);
+          recoveryMode = false;
+          rawCorruptedStorage = null;
+        }
       }
     } catch (e) {
-      console.error('Failed to load library:', e);
+      console.error('Failed to load library (corrupted JSON):', e);
+      recoveryMode = true;
+      try {
+        rawCorruptedStorage = localStorage.getItem(STORAGE_KEY);
+      } catch (err) {
+        rawCorruptedStorage = null;
+      }
       library = [];
+      setTimeout(showRecoveryDialog, 100);
     }
     // A5 — wrap VIEW_PREF_KEY reads in try/catch
     try {
@@ -370,7 +393,79 @@
     }
   }
 
+  function exportRawCorruptedData() {
+    const text = rawCorruptedStorage || '';
+    const filename = 'novelshelf-corrupted-' + localDateString() + '.txt';
+    if (window.Android && typeof window.Android.saveText === 'function') {
+      window._onExportResult = function (success, cancelled) {
+        window._onExportResult = null;
+        if (success) {
+          showToast('Corrupted data file saved!', 'success');
+        } else if (!cancelled) {
+          showToast('Export failed.', 'error');
+        }
+      };
+      window.Android.saveText(filename, text);
+    } else {
+      try {
+        const blob = new Blob([text], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        showToast('Corrupted data downloaded!', 'success');
+      } catch (err) {
+        console.error('Export raw data failed:', err);
+        showToast('Export failed.', 'error');
+      }
+    }
+  }
+
+  async function showRecoveryDialog() {
+    const choice = await showConfirm(
+      'Storage data appears corrupted or unreadable. Would you like to export the raw text for recovery, or start fresh with an empty library?',
+      'Export Raw Data',
+      'Start Fresh'
+    );
+    if (choice) {
+      exportRawCorruptedData();
+      showToast('Raw data exported. Storage remains protected.', 'info');
+    } else {
+      const confirmReset = await showConfirm(
+        'Are you sure you want to start fresh? Any unreadable data in storage will be permanently erased.',
+        'Yes, Start Fresh',
+        'Cancel'
+      );
+      if (confirmReset) {
+        recoveryMode = false;
+        rawCorruptedStorage = null;
+        library = [];
+        try {
+          localStorage.setItem(STORAGE_KEY, '[]');
+        } catch (e) {
+          console.error(e);
+        }
+        renderLibrary();
+        updateTabBadges();
+        updateGenreDropdown();
+        updateStatsDashboard();
+        showToast('Library reset. You can now use the app normally.', 'info');
+      } else {
+        setTimeout(showRecoveryDialog, 200);
+      }
+    }
+  }
+
   function saveLibrary() {
+    if (recoveryMode) {
+      console.warn('saveLibrary blocked: storage is in recovery mode to prevent overwriting corrupted data.');
+      showToast('Cannot save changes: storage is in recovery mode.', 'error');
+      return false;
+    }
     let ok = true;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(library));
