@@ -2314,16 +2314,6 @@ textarea {
   touch-action: manipulation;
 }
 
-background: var(--bg-elevated);
-display: flex;
-align-items: center;
-justify-content: center;
-overflow: hidden;
-cursor: pointer;
-transition: border-color var(--t-fast);
-touch-action: manipulation;
-}
-
 .cover-preview-wrapper:hover {
   border-color: var(--amber);
 }
