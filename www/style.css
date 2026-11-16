@@ -176,6 +176,26 @@
   margin: 0;
   padding: 0;
   -webkit-tap-highlight-color: transparent;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
 }
 
 :focus-visible {
@@ -3401,6 +3421,27 @@ touch-action: manipulation;
 }
 
 /* ---- Settings Toggle Switch ---- */
+/* ---- Settings Toggle Switch & Status ---- */
+.toggle-control-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.toggle-status-text {
+  font-size: .8rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  min-width: 24px;
+  text-align: right;
+  transition: color var(--t-fast);
+}
+
+.toggle-status-text.active {
+  color: var(--amber-light);
+}
+
 .toggle-switch {
   position: relative;
   display: inline-block;
@@ -3444,13 +3485,14 @@ touch-action: manipulation;
 }
 
 .toggle-switch input:checked+.toggle-slider {
-  background: var(--amber-dim);
-  border-color: var(--amber);
+  background: var(--amber);
+  border-color: var(--amber-light);
+  box-shadow: 0 0 12px var(--amber-glow);
 }
 
 .toggle-switch input:checked+.toggle-slider::before {
   transform: translateX(20px);
-  background: var(--amber-light);
+  background: #ffffff;
 }
 
 .toggle-switch input:focus-visible+.toggle-slider {
@@ -3669,7 +3711,9 @@ touch-action: manipulation;
 
 [data-reduced-motion="true"] .floating-nav-container.nav-hidden,
 .reduced-effects .floating-nav-container.nav-hidden {
-  transform: translateX(-50%) !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: none !important;
 }
 
 [data-reduced-motion="true"]::view-transition-group(*),
