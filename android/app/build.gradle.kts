@@ -57,6 +57,9 @@ dependencies {
 
 // Automatically sync root www/ folder into Android assets during preBuild (excluding test scripts)
 tasks.register<Copy>("syncWebAssets") {
+    doFirst {
+        file("src/main/assets/www/tests").deleteRecursively()
+    }
     from(rootProject.file("../www")) {
         exclude("tests/**")
     }

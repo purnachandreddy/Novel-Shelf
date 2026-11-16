@@ -32,6 +32,12 @@ if (-not (Test-Path $destDir)) {
     New-Item -ItemType Directory -Path $destDir -Force | Out-Null
 }
 
+# Ensure tests/ directory is never present in android assets
+$testsDest = Join-Path $destDir "tests"
+if (Test-Path $testsDest) {
+    Remove-Item -Path $testsDest -Recurse -Force
+}
+
 # Copy files excluding tests directory
 Get-ChildItem -Path $srcDir -Exclude "tests" | ForEach-Object {
     Copy-Item -Path $_.FullName -Destination $destDir -Recurse -Force
