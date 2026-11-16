@@ -480,3 +480,428 @@ To verify real-world hardware frame rates and thermal stability:
    - Perform rapid vertical flings on Shelf Grid view. Confirm zero dropped frames below 120 FPS.
    - Rapidly switch tabs (Shelf -> Stats -> Backup) to verify View Transition latency (<250ms).
    - Tap cards into Details and navigate Back to confirm zero lingering headers or layout shifts.
+
+
+---
+
+# Part A: Audit Addendum (Phase 5 Deep Verification)
+
+**Audited Commit:** `daf0e66`  
+**Execution Context:** Read-only audit verification of gaps, claim methodologies, accessibility targets, data safety, and compilation artifacts.
+
+---
+
+## A1. Contradictions Resolved With Concrete Evidence
+
+### 1. Storage Keys Audit
+A search across all files in `www/` (`app.js`, `motion.js`, `stats-calculator.js`, `index.html`) reveals the exact storage keys and declarations used by Novel Shelf:
+
+| File & Line | Code Snippet | Storage Key | Purpose |
+|:---|:---|:---|:---|
+| `www/app.js:11` | `const STORAGE_KEY = 'novelshelf_library_v1';` | `'novelshelf_library_v1'` | Primary library array storage in `localStorage` |
+| `www/app.js:12` | `const VIEW_PREF_KEY = 'novelshelf_view_mode';` | `'novelshelf_view_mode'` | View mode (`"grid"` or `"list"`) in `localStorage` |
+| `www/app.js:2527` | `localStorage.setItem('novelshelf_reduce_effects', String(isChecked));` | `'novelshelf_reduce_effects'` | Reduce Effects toggle state in `localStorage` |
+| `www/index.html:25` | `var saved = localStorage.getItem('novelshelf_reduce_effects');` | `'novelshelf_reduce_effects'` | Early pre-render check in `<head>` to avoid flash of motion |
+
+*Verification Command:*
+```bash
+grep -E "(getItem|setItem|removeItem|localStorage|sessionStorage)" www/app.js www/motion.js www/stats-calculator.js
+```
+*Exact lines from `www/app.js`:*
+- Line 428: `const stored = localStorage.getItem(STORAGE_KEY);`
+- Line 454: `rawCorruptedStorage = localStorage.getItem(STORAGE_KEY);`
+- Line 463: `currentView = localStorage.getItem(VIEW_PREF_KEY) || 'grid';`
+- Line 521: `localStorage.setItem(STORAGE_KEY, '[]');`
+- Line 544: `localStorage.setItem(STORAGE_KEY, JSON.stringify(library));`
+- Line 2100: `localStorage.setItem(VIEW_PREF_KEY, mode);`
+- Line 2527: `localStorage.setItem('novelshelf_reduce_effects', String(isChecked));`
+
+**Contradiction Resolution:** The previous audit report incorrectly referenced legacy generic keys `'novels'` and `'novels_shelf_view'`. The actual production keys in code are prefixed and versioned: `'novelshelf_library_v1'`, `'novelshelf_view_mode'`, and `'novelshelf_reduce_effects'`. Zero calls to `sessionStorage` exist in the codebase.
+
+### 2. Storage Recovery & Corrupted Raw Data Handling
+The audit investigated whether `rawCorruptedStorage` writes to `sessionStorage` or remains in-memory:
+
+*Exact lines from `www/app.js`:*
+```javascript
+// www/app.js:60-61
+let recoveryMode = false;
+let rawCorruptedStorage = null;
+
+// www/app.js:433-460 (inside loadLibrary())
+} else {
+  const parsed = JSON.parse(stored);
+  if (!Array.isArray(parsed)) {
+    console.error('Storage contains non-array JSON:', parsed);
+    recoveryMode = true;
+    rawCorruptedStorage = stored; // In-memory reference
+    library = [];
+    setTimeout(showRecoveryDialog, 100);
+  } else {
+    library = parsed
+      .filter(item => typeof item === 'object' && item !== null && typeof item.id === 'string')
+      .map(normalizeImportedNovel);
+    recoveryMode = false;
+    rawCorruptedStorage = null;
+  }
+}
+} catch (e) {
+  console.error('Failed to load library (corrupted JSON):', e);
+  recoveryMode = true;
+  try {
+    rawCorruptedStorage = localStorage.getItem(STORAGE_KEY); // In-memory reference
+  } catch (err) {
+    rawCorruptedStorage = null;
+  }
+  library = [];
+  setTimeout(showRecoveryDialog, 100);
+}
+```
+
+*Assessment & Recommendation:*
+- `rawCorruptedStorage` is kept **strictly in an in-memory variable** (`let rawCorruptedStorage = null;` at `app.js:61`). It is **never** copied to `sessionStorage`.
+- Writing corrupted payloads to `sessionStorage` could fail if quota is exhausted and adds unnecessary memory/disk duplication.
+- Keeping it in memory satisfies the Phase 1 requirement with zero side effects. **Recommendation: Maintain the current in-memory pattern; no storage copy should be added.**
+
+### 3. Surface Tokens vs Native Background Colors
+The audit resolved discrepancies in base background token naming:
+
+*Exact lines from `www/style.css:15-26`:*
+```css
+--surface-base:      #0b0e14;
+--surface-raised:    #121824;
+--surface-elevated:  #182232;
+--surface-hover:     #1f2c3e;
+--surface-scrim:     rgba(0, 0, 0, 0.78);
+--scrim:             rgba(11, 14, 20, 0.75);
+
+/* Legacy aliases for backward compatibility */
+--bg-primary:        var(--surface-base);
+--bg-surface:        var(--surface-raised);
+--bg-elevated:       var(--surface-elevated);
+--bg-hover:          var(--surface-hover);
+```
+
+*Exact lines from `android/app/src/main/res/values/colors.xml`:*
+```xml
+<color name="bg_primary">#0B0E14</color>
+<color name="bg_surface">#131924</color>
+<color name="status_bar_color">#0B0E14</color>
+<color name="nav_bar_color">#0B0E14</color>
+```
+
+*Exact lines from `android/app/src/main/java/com/novelshelf/app/MainActivity.kt:200-201`:*
+```kotlin
+// Matches CSS --surface-base (#0B0E14) in www/style.css and @color/bg_primary in themes.xml
+webView.setBackgroundColor(android.graphics.Color.parseColor("#0B0E14"))
+```
+
+**Resolution:** There is no `--bg-base` token in `style.css`. The primary surface token is `--surface-base: #0b0e14;`, with `--bg-primary` serving as an alias. The native Android WebView background, system bar colors, and XML color resources match `#0B0E14` byte-for-byte.
+
+---
+
+## A2. Release Build & R8/ProGuard Verification
+
+- **Command Executed:** `cd android; .\gradlew.bat assembleRelease`
+- **Build Status:** **BUILD SUCCESSFUL in 1m 4s** (49 actionable tasks, 1 executed, 48 up-to-date)
+- **Output Artifact:** `android/app/build/outputs/apk/release/app-release.apk`
+- **APK File Size:** **2,391,941 bytes (2.39 MB)**
+
+### ProGuard/R8 & JavascriptInterface Retention Check
+In `android/app/build.gradle.kts:20-29`:
+```kotlin
+buildTypes {
+    release {
+        isMinifyEnabled = true
+        isShrinkResources = true
+        proguardFiles(
+            getDefaultProguardFile("proguard-android-optimize.txt"),
+            "proguard-rules.pro"
+        )
+        signingConfig = signingConfigs.getByName("debug")
+    }
+}
+```
+
+In `android/app/proguard-rules.pro:1-5`:
+```proguard
+# Novel Shelf ProGuard rules
+-keepattributes JavascriptInterface
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
+```
+
+*Verification:*
+1. **Bridge Methods Kept:** The `@JavascriptInterface` rules in `proguard-rules.pro` preserve all methods of `MainActivity.AndroidBridge`:
+   - `saveJson(suggestedFilename: String, json: String)`
+   - `saveText(suggestedFilename: String, text: String)`
+   - `setCanGoBack(canGoBack: Boolean)`
+   - `haptic(kind: String)`
+2. **Asset Loader Kept:** `androidx.webkit:webkit:1.12.1` (`WebViewAssetLoader`) ships consumer ProGuard rules keeping its public API. The release build compiles and runs `WebViewAssetLoader.Builder().addPathHandler(...)` cleanly.
+3. **Signing Status:** The release APK is **SIGNED with the Android debug key** (`signingConfig = signingConfigs.getByName("debug")`), allowing direct sideloading and ADB installation without requiring manual jarsigner/apksigner steps.
+
+---
+
+## A3. Data Safety Re-Check
+
+1. **Storage Corruption Behavior:**
+   - Handled in `app.js:426-460` (`loadLibrary()`).
+   - If JSON is malformed or not an array, `recoveryMode` is set to `true`, the unparsed string is kept in-memory (`rawCorruptedStorage`), and `showRecoveryDialog()` displays options to export or reset.
+   - Destructive saves are strictly blocked in `saveLibrary()`:
+     ```javascript
+     if (recoveryMode) {
+       console.warn('saveLibrary blocked: storage is in recovery mode to prevent overwriting corrupted data.');
+       showToast('Cannot save changes: storage is in recovery mode.', 'error');
+       return false;
+     }
+     ```
+2. **Quota Exceeded Behavior:**
+   - In `app.js:543-549`, `localStorage.setItem(STORAGE_KEY, ...)` is protected by `try/catch`. When quota is exceeded, an actionable error toast appears: `"Storage limit reached. Try using cover image URLs instead of files."`
+3. **Android Cloud Backup:**
+   - In `AndroidManifest.xml:13`: `android:allowBackup="false"`.
+   - **Verification:** System backups (Google Drive / ADB backup) are disabled.
+4. **Accuracy of Backup Screen Warning:**
+   - In `index.html:452`: `"Your library is stored only on this device. Uninstalling the app or clearing its data deletes it, so export a backup regularly."`
+   - **Verification:** 100% accurate. With `allowBackup="false"` and `localStorage` persistence, uninstallation or application data wiping permanently destroys local novel records.
+5. **Lossless Round-Trip Simulation:**
+   - A synthetic library of 50 novels with varied statuses, ratings (including 0), date ranges, multiline notes, special characters (`<>&"'`), tags, and base64 cover images (34 novels with covers) was processed through `JSON.stringify` export followed by `normalizeImportedNovel` import.
+   - **Result:** **100% LOSSLESS**. All 50 novels, all properties, and 34/34 base64/URL covers matched the original data structures exactly.
+
+---
+
+## A4. Accessibility Sweep
+
+### 1. Interactive Elements Under 44×44px Hit Target
+Auditing all interactive selectors in `style.css` and `index.html`:
+
+| Selector | Current Visual / Hit Size | Element Description | Status |
+|:---|:---:|:---|:---:|
+| `.clear-btn` (`#btn-clear-search`) | `~22 × 22px` (`padding: 4px; font-size: .88rem;`) | Search box clear button | **FAIL (<44px)** |
+| `.cover-remove-btn` (`#btn-remove-cover`) | `22 × 22px` (`width: 22px; height: 22px;`) | Cover thumbnail delete badge | **FAIL (<44px)** |
+| `.toggle-btn` (`#view-grid-btn`, `#view-list-btn`) | `~34 × 34px` (`padding: 6px 9px;`) | Shelf view mode toggles | **FAIL (<44px)** |
+| `.btn-clear-rating` (`#btn-clear-rating`) | `~24px` height (`padding: 4px 8px;`) | Form rating reset button | **FAIL (<44px)** |
+| `.btn-quick-date` (`.btn-quick-date`) | `~26px` height (`padding: 0 10px;`) | Quick "Today" date buttons | **FAIL (<44px)** |
+| `.pill-btn` (`.pill-btn`) | `~24px` height (`padding: 4px 10px;`) | Genre chips in Add/Edit modal | **FAIL (<44px)** |
+| `.status-pill-btn` (`.status-pill-btn`) | `~30px` height (`padding: 6px 13px;`) | Form status selector pills | **FAIL (<44px)** |
+| `.status-tab` (`.status-tab`) | Visual: ~32px, Hit: **44 × 44px** | Shelf status filter tabs | **PASS** (via `::before`) |
+| `.time-pill-btn` (`.time-pill-btn`) | Visual: ~28px, Hit: **44 × 44px** | Stats time filter pills | **PASS** (via `::before`) |
+| `.btn-quick-chapter` (`.btn-quick-chapter`) | Visual: ~26px, Hit: **44 × 44px** | Quick chapter increment stepper | **PASS** (via `::before`) |
+| `.icon-btn` (`.icon-btn`) | Visual: 40px, Hit: **44 × 44px** | Details edit/delete buttons | **PASS** (via `::before`) |
+
+### 2. Icon-Only Buttons & ARIA Accessibility
+- **Icon-Only Buttons:** All icon-only buttons (`#btn-clear-search`, `#view-grid-btn`, `#view-list-btn`, `#btn-detail-edit`, `#btn-detail-delete`, `#btn-add-novel-top`, `#btn-remove-cover`, `#btn-back-shelf`, `#btn-close-form`) specify explicit `aria-label` or `title` attributes.
+- **Nav Tab Roles:**
+  - `.nav-pill` declares `role="tablist"` (`index.html:721`).
+  - `#nav-tab-shelf`, `#nav-tab-stats`, `#nav-tab-backup` declare `role="tab"` and dynamic `aria-selected` updated via `updateNavState()` in `app.js:308`.
+- **Modal Focus Handling:**
+  - `openNovelModal()` calls `formTitle.focus()` at `app.js:1376`.
+  - *Gap:* Modals lack an explicit focus trap (Tab key cycle within modal bounds) and do not restore focus to the previously active element upon closing.
+- **Text Scaling & 360px Viewport:**
+  - Sizing is driven by `rem` and fluid flex/grid layouts. System font scaling (Large/1.15x-1.30x) scales typography without clipping.
+  - At 360px width, the floating nav pill measures ~276px total width, leaving ~42px margins on either side.
+  - The shelf grid uses `grid-template-columns: repeat(2, minmax(0, 1fr))`, giving ~165px per card, with zero horizontal overflow.
+
+---
+
+## A5. Verification of Historical Benchmark & Structural Claims
+
+### (a) Phase 2 Reconciliation Benchmark Numbers (0.044 ms vs 0.0035 ms)
+- **Investigation:** Transcript logs at step 1490 reveal the exact test script `scratch_bench.js`.
+- **Findings:** The benchmark numbers were **measured using a synthetic mock DOM class (`class MockElement`) inside a Node.js process**, NOT in a live Chromium browser or WebView DOM.
+- **Evidence:** `scratch_bench.js` defined `class MockElement { appendChild() ... insertBefore() ... remove() }` and simulated DOM mutations in memory. While it accurately proved the theoretical algorithmic reduction in JS operations (13x fewer updates for single cards), it did not account for real browser layout recalculation, style recalculation, or GPU compositing costs.
+
+### (b) Phase 3 Spring Solver & Stats Timings
+- **Investigation:** Transcript logs at steps 2170-2173 reveal `scripts/perf-benchmark.js`.
+- **Findings:** The timings (0.376 µs per frame evaluation for spring solver, 2.115ms for 300-novel stats) were **measured in the Node.js runtime via `perf_hooks` (`performance.now()`)**, NOT inside Android WebView.
+- **Evidence:** The benchmark executed tight synthetic loops in V8 on desktop hardware. Real-device performance depends on ARM execution on the Snapdragon 8 Elite and WebView JavaScript engine overhead.
+
+### (c) Ancestor Conditions That Created the Nav Backdrop Root
+- **Investigation:** Git diff for commit `6d37d13dae8ae136f23be15026244a98573d1ece` (`feat(nav): make bottom nav truly frosted with direct body placement`).
+- **Findings:** The backdrop root was created by two specific ancestor conditions:
+  1. **Container Transform:** The navigation wrapper `.floating-nav-container` was styled with `left: 50%; transform: translateX(-50%);`. Under the CSS Compositing and Filter Effects specification, any element with a `transform` other than `none` establishes a containing block for fixed descendants and a **backdrop root boundary**. Chromium's renderer isolates backdrop-filtering to pixels within that containing block, preventing `.nav-pill` from sampling content behind the container.
+  2. **Nested Hierarchy Inside `#app`:** `#floating-bottom-nav` was nested inside `<div id="app" class="app-container">`, which participates in View Transitions and page-level transitions.
+- **Resolution:** In commit `6d37d13`, the nav was moved to a direct child of `<body>` and centered using `left: 0; right: 0; margin: 0 auto; justify-content: center;` without `transform: translateX(-50%)`, eliminating the backdrop root entirely.
+
+### (d) Scope of Reduce Effects Mode
+- **Investigation:** Analysis of `style.css:3612-3716`, `motion.js:9-442`, and `app.js:1020-1120`.
+- **Findings:** Reduce Effects mode comprehensively removes:
+  1. **All Blurs:** `[data-reduced-motion="true"] *, .reduced-effects * { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }`, `--blur-sm: 0px; --blur-md: 0px; --blur-lg: 0px;`. Overlays `.edge-blur-top` and `.edge-blur-bottom` have `display: none !important;`.
+  2. **All Ambient Layers:** `body::before, body::after { display: none !important; animation: none !important; }`.
+  3. **All Springs & Motion Physics:** `effectsReduced()` in `motion.js` halts delegated squish (`applySquishPress`), staggered cards entrance, bar scale animations, and countUp number interpolation (targets render instantly).
+  4. **All View Transitions:** In `app.js:1020`, `canAnimate` evaluates `effectsReduced()`. When enabled, `document.startViewTransition()` is bypassed completely in favor of synchronous DOM switching.
+- **Omissions:** **None**. Zero blurs, springs, ambient layers, or view transitions execute when Reduce Effects is enabled.
+
+---
+
+## A6. Dead Code, Hygiene & Repository Health
+
+1. **`console.log` Calls:** **0** instances in production code. Only 6 legitimate error/warn handlers (`console.error` and `console.warn`) exist in `app.js` for corruption recovery and quota handling.
+2. **`TODO` / `FIXME` Comments:** **0** instances across `www/` and `android/`.
+3. **Unused Tokens / Classes:**
+   - 16 unused custom properties defined in `:root` (`style.css:35-125`).
+   - `.empty-glow` (`style.css:2072`) is styled but not referenced in `index.html`.
+4. **Stray Files & Git Health:**
+   - Git working tree is clean.
+   - `.gitignore` handles `.gradle/`, `build/`, `*.apk`, `local.properties`, and `node_modules/`.
+5. **README Documentation:**
+   - `README.md` documents architecture, ColorOS 17 Living Flow tokens, the single-command sync pipeline (`.\scripts\sync.ps1`), testing, and APK builds (`.\scripts\sync.ps1 -Build`).
+
+---
+
+## A7. Updated Comprehensive Context Pack
+
+### 1. Function Index
+- **`www/app.js`**:
+  - `initApp()` (`L45`): Entrypoint; sets up listeners, loads storage, handles insets and initial routing.
+  - `updateNavState(activeScreen)` (`L300`): Updates floating nav tab classes and `aria-selected` attributes.
+  - `renderLibrary()` (`L560`): Keyed DOM reconciler for shelf grid and list views.
+  - `updateCardNode(card, novel)` / `updateRowNode(row, novel)` (`L620`, `L680`): In-place DOM diff updates.
+  - `incrementChapter(id)` / `decrementChapter(id)` (`L940`): Stepper mutations with chapter clamping and auto-complete.
+  - `showScreen(screenId, options)` (`L1010`): Unified screen router with View Transitions and history management.
+  - `openNovelModal(novelId)` / `handleNovelFormSubmit(e)` (`L1310`, `L1385`): Add/Edit modal dialog controllers.
+  - `compressCoverImage(file)` (`L1547`): Offscreen canvas 300×450 JPEG 0.70 quality compressor.
+  - `updateStatsDashboard(instant)` (`L1660`): Computes metrics via `StatsCalculator` and renders charts/spotlights.
+  - `loadLibrary()` / `saveLibrary()` (`L426`, `L536`): Storage persistence, corruption detection, and recovery mode.
+  - `exportLibraryJson()` / `importLibraryJson(file)` (`L2118`, `L2303`): Backup generation and schema validation import.
+  - `normalizeImportedNovel(n)` (`L2234`): Schema sanitizer, rating snapper, and date backfiller.
+- **`www/stats-calculator.js`**:
+  - `parseLocalDate(dateStr)` (`L22`): Parses `YYYY-MM-DD` string to local midnight `Date`.
+  - `formatLocalDate(date)` (`L33`): Formats `Date` to `YYYY-MM-DD`.
+  - `formatDateShort(dateStr)` (`L44`): Formats `YYYY-MM-DD` to `DD/MM/YY`.
+  - `diffDays(d1, d2)` (`L55`): Calculates integer difference in calendar days.
+  - `computeStats(novels, timeFilter, now)` (`L66`): Pure engine calculating velocity, projections, and breakdowns.
+  - `calculateFinishEstimate(novel, userPace, now)` (`L380`): Computes remaining days and projected date.
+- **`www/motion.js`**:
+  - `effectsReduced()` (`L9`): Checks `data-reduced-motion` attribute and `reduced-effects` class.
+  - `applySquishPress(el, e)` / `releaseSquish(el, returnToRest)` (`L20`, `L59`): Pointer-down compression and spring release.
+  - `staggerEntrance(elements, options)` (`L194`): Staggered translateY/opacity entrance sequence.
+  - `animateBarScale(barEl, ratio, options)` (`L313`): Scale-based horizontal bar growth.
+  - `countUp(element, target, options)` (`L394`): Eased number interpolation loop.
+
+### 2. DOM Map
+- **Root Container:** `<div id="app" class="app-container">`
+  - **Screen 1:** `<div id="view-shelf" class="view-screen">` (Search bar, view toggle, status tabs, `#shelf-grid`, `#shelf-list`, `#shelf-empty`)
+  - **Screen 2:** `<div id="view-stats" class="view-screen">` (Time filter pills, metric cards, currently reading list, genre bars, author spotlights)
+  - **Screen 3:** `<div id="view-backup" class="view-screen">` (Backup description, export JSON/TXT buttons, import file input, sample library loader, reduce effects toggle)
+  - **Screen 4:** `<div id="view-details" class="view-screen">` (Details topbar, back button, edit/delete actions, cover box, metadata, quick chapter buttons, notes, tags)
+  - **Screen 5:** `<div id="view-form" class="view-screen">` (Form topbar, fullpage form, cover preview/upload, title, author, status pills, chapters, rating, dates, genres, tags)
+- **Modals & Overlays (Body Children):**
+  - `<nav id="floating-bottom-nav" class="floating-nav-container">` (`.nav-pill` with `#nav-tab-shelf`, `#nav-tab-stats`, `#nav-tab-backup` + `#btn-add-novel-top`)
+  - `<div id="confirm-modal" class="modal-backdrop">` (`.confirm-card` with `#confirm-msg`, `#btn-confirm-no`, `#btn-confirm-yes`)
+  - `<div class="edge-blur-top">` & `<div class="edge-blur-bottom">`
+  - `<div id="toast" class="toast">`
+
+### 3. Full CSS Token List (`style.css:1-125`)
+```css
+--surface-base: #0b0e14;
+--surface-raised: #121824;
+--surface-elevated: #182232;
+--surface-hover: #1f2c3e;
+--surface-scrim: rgba(0, 0, 0, 0.78);
+--scrim: rgba(11, 14, 20, 0.75);
+
+--bg-primary: var(--surface-base);
+--bg-surface: var(--surface-raised);
+--bg-elevated: var(--surface-elevated);
+--bg-hover: var(--surface-hover);
+
+--glass-fill: rgba(255, 255, 255, 0.06);
+--glass-fill-strong: rgba(255, 255, 255, 0.09);
+--glass-edge: rgba(255, 255, 255, 0.15);
+--glass-edge-strong: rgba(255, 255, 255, 0.25);
+--glass-glow: rgba(245, 158, 11, 0.18);
+--blur-sm: 12px;
+--blur-md: 20px;
+--blur-lg: 24px;
+
+--frost-tint: rgba(14, 18, 28, 0.55);
+--frost-tint-amber: rgba(245, 158, 11, 0.28);
+--frost-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04));
+--frost-fallback: rgba(14, 18, 28, 0.88);
+--nav-clearance: calc(96px + var(--inset-bottom));
+
+--header-tint: rgba(11, 14, 20, 0.62);
+--header-blur: var(--blur-md);
+--header-border: 1px solid var(--glass-edge);
+
+--ambient-top-blob-top: 32%;
+--ambient-top-blob-right: -130px;
+--ambient-bottom-blob-bottom: -90px;
+--ambient-bottom-blob-left: -100px;
+--ambient-amber: rgba(245, 158, 11, 0.08);
+--ambient-blue: rgba(59, 130, 246, 0.10);
+
+--contour-edge: inset 0 1px 0 0 rgba(255, 255, 255, 0.18), inset 1px 0 0 0 rgba(255, 255, 255, 0.08), inset -1px -1px 0 0 rgba(255, 255, 255, 0.04);
+--contour-edge-bottom: inset 0 -1px 0 0 rgba(255, 255, 255, 0.04);
+--contour-glow-amber: 0 0 24px -2px rgba(245, 158, 11, 0.28), inset 0 1px 0 0 rgba(255, 255, 255, 0.25);
+--contour-glow-subtle: 0 8px 30px -4px rgba(0, 0, 0, 0.4), inset 0 1px 0 0 rgba(255, 255, 255, 0.14);
+
+--border-subtle: rgba(255, 255, 255, 0.10);
+--border-medium: rgba(255, 255, 255, 0.15);
+--border-focus: rgba(245, 158, 11, 0.7);
+--focus-ring: 0 0 0 3px var(--amber-dim);
+
+--text-primary: #f8fafc;
+--text-secondary: #cbd5e1;
+--text-muted: #94a3b8;
+--text-on-accent: #0b0e14;
+--text-white: #ffffff;
+
+--amber: #f59e0b;
+--amber-dark: #d97706;
+--amber-light: #fbbf24;
+--amber-dim: rgba(245, 158, 11, 0.18);
+--amber-glow: rgba(245, 158, 11, 0.3);
+
+--color-reading: #3b82f6;
+--color-reading-light: #60a5fa;
+--color-reading-bg: rgba(59, 130, 246, 0.2);
+--color-reading-solid: rgba(59, 130, 246, 0.9);
+
+--color-completed: #10b981;
+--color-completed-light: #34d399;
+--color-completed-bg: rgba(16, 185, 129, 0.2);
+--color-completed-solid: rgba(16, 185, 129, 0.9);
+
+--color-plan: #a855f7;
+--color-plan-light: #c084fc;
+--color-plan-bg: rgba(168, 85, 247, 0.2);
+--color-plan-solid: rgba(168, 85, 247, 0.9);
+
+--color-onhold: #f97316;
+--color-onhold-light: #fb923c;
+--color-onhold-bg: rgba(249, 115, 22, 0.15);
+--color-onhold-solid: rgba(249, 115, 22, 0.9);
+
+--color-dropped: #ef4444;
+--color-dropped-light: #f87171;
+--color-dropped-bg: rgba(239, 68, 68, 0.15);
+--color-dropped-solid: rgba(239, 68, 68, 0.9);
+
+--rank-1: #fbbf24;
+--rank-2: #cbd5e1;
+--rank-3: #b45309;
+--tag-fastest: #34d399;
+--tag-fastest-bg: rgba(16, 185, 129, 0.2);
+--tag-longest: #60a5fa;
+--tag-longest-bg: rgba(59, 130, 246, 0.2);
+
+--r-xs: 4px;
+--r-sm: 8px;
+--r-md: 12px;
+--r-lg: 16px;
+--r-xl: 22px;
+--r-full: 9999px;
+
+--shadow-sm: 0 2px 8px rgba(0, 0, 0, .35);
+--shadow-md: 0 8px 24px rgba(0, 0, 0, .45);
+--shadow-lg: 0 20px 48px rgba(0, 0, 0, .6);
+```
+
+### 4. JavaScript Bridge API (`MainActivity.kt`)
+- `Android.saveJson(suggestedFilename, json)`: Opens Android SAF document creation picker to save library backup JSON. Dispatches completion result to `window._onExportResult(success, cancelled)`.
+- `Android.saveText(suggestedFilename, text)`: Opens Android SAF document picker for corrupted text dumps. Dispatches to `window._onExportResult`.
+- `Android.setCanGoBack(canGoBack)`: Tells native Android activity whether web history/modals can consume system back press.
+- `Android.haptic(kind)`: Triggers native Android view haptic feedback (`"tick"` -> `KEYBOARD_TAP`, `"confirm"` -> `CONFIRM` / `LONG_PRESS`).
+- `window.applyWindowInsets(top, bottom, left, right)`: Evaluated by Kotlin to set CSS properties `--inset-top`, `--inset-bottom`, `--inset-left`, `--inset-right`, and `--ime-height`.
+- `window.handleAppBack()`: Evaluated by Android `OnBackPressedCallback` to route back navigation cleanly through JS modals and screens before finishing the activity.
