@@ -145,9 +145,9 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // System Insets bridge: WebView draws edge-to-edge behind system bars, passing insets to CSS variables
+        // System Insets bridge: WebView draws edge-to-edge behind system bars & cutouts, passing insets to CSS variables
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
-            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
             val ime  = insets.getInsets(WindowInsetsCompat.Type.ime())
             val density = resources.displayMetrics.density
             val topPx    = (bars.top / density).toInt()
@@ -168,6 +168,7 @@ class MainActivity : AppCompatActivity() {
             binding.webView.evaluateJavascript(js, null)
             insets
         }
+        binding.root.requestApplyInsets()
 
         // Back navigation: JS manages screens, modals, and history; finish only when on root shelf
         val backCallback = object : OnBackPressedCallback(true) {
@@ -221,9 +222,21 @@ class MainActivity : AppCompatActivity() {
         webView.webViewClient = object : WebViewClientCompat() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
-                currentInsetsJs?.let { js ->
-                    view?.evaluateJavascript(js, null)
+                val js = currentInsetsJs ?: run {
+                    val rootInsets = ViewCompat.getRootWindowInsets(binding.root)
+                    if (rootInsets != null) {
+                        val bars = rootInsets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+                        val ime  = rootInsets.getInsets(WindowInsetsCompat.Type.ime())
+                        val density = resources.displayMetrics.density
+                        val topPx    = (bars.top / density).toInt()
+                        val bottomPx = (bars.bottom / density).toInt()
+                        val leftPx   = (bars.left / density).toInt()
+                        val rightPx  = (bars.right / density).toInt()
+                        val imePx    = (ime.bottom / density).toInt()
+                        "document.documentElement.style.setProperty('--inset-top', '${topPx}px'); document.documentElement.style.setProperty('--inset-bottom', '${bottomPx}px'); document.documentElement.style.setProperty('--inset-left', '${leftPx}px'); document.documentElement.style.setProperty('--inset-right', '${rightPx}px'); document.documentElement.style.setProperty('--ime-height', '${imePx}px');"
+                    } else null
                 }
+                js?.let { view?.evaluateJavascript(it, null) }
             }
 
             override fun shouldInterceptRequest(
