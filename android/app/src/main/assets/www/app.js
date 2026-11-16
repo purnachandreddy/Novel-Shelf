@@ -55,6 +55,9 @@
 
   // A9 — cancel function for the active confirm dialog
   let activeConfirmCancel = null;
+  // A11y: focus tracking for dialogs
+  let confirmTriggerElement = null;
+  let formTriggerElement = null;
 
   // Step 1: Storage recovery mode
   let recoveryMode = false;
@@ -301,6 +304,8 @@
     if (!floatingNav) return;
     if (isRootTab(activeScreen)) {
       floatingNav.classList.remove('nav-hidden');
+      floatingNav.inert = false;
+      floatingNav.removeAttribute('aria-hidden');
       const tabs = floatingNav.querySelectorAll('.nav-tab-btn');
       tabs.forEach(tab => {
         const isSelected = tab.dataset.tab === activeScreen;
@@ -314,6 +319,8 @@
       });
     } else {
       floatingNav.classList.add('nav-hidden');
+      floatingNav.inert = true;
+      floatingNav.setAttribute('aria-hidden', 'true');
     }
   }
   function canHandleBack() {
@@ -332,10 +339,24 @@
   function showConfirm(message, yesLabel = 'Delete', noLabel = 'Cancel') {
     if (confirmDialog.style.display === 'flex') return Promise.resolve(false);
     return new Promise((resolve) => {
+      confirmTriggerElement = document.activeElement;
+      const appEl = document.getElementById('app');
+      if (appEl) {
+        appEl.inert = true;
+        appEl.setAttribute('aria-hidden', 'true');
+      }
+      if (floatingNav) {
+        floatingNav.inert = true;
+        floatingNav.setAttribute('aria-hidden', 'true');
+      }
+
       confirmMessage.textContent = message;
       btnConfirmYes.textContent = yesLabel;
       btnConfirmNo.textContent = noLabel;
       confirmDialog.style.display = 'flex';
+      if (btnConfirmNo && typeof btnConfirmNo.focus === 'function') {
+        btnConfirmNo.focus();
+      }
       updateNativeBackState();
 
       const finish = (val) => {
@@ -343,6 +364,18 @@
         confirmDialog.style.display = 'none';
         btnConfirmYes.removeEventListener('click', onYes);
         btnConfirmNo.removeEventListener('click', onNo);
+        if (appEl) {
+          appEl.inert = false;
+          appEl.removeAttribute('aria-hidden');
+        }
+        if (floatingNav && isRootTab(currentScreen)) {
+          floatingNav.inert = false;
+          floatingNav.removeAttribute('aria-hidden');
+        }
+        if (confirmTriggerElement && typeof confirmTriggerElement.focus === 'function') {
+          try { confirmTriggerElement.focus(); } catch (e) { }
+        }
+        confirmTriggerElement = null;
         updateNativeBackState();
         resolve(val);
       };
@@ -363,6 +396,17 @@
   function showImportChoiceDialog(message) {
     if (confirmDialog.style.display === 'flex') return Promise.resolve('cancel');
     return new Promise((resolve) => {
+      confirmTriggerElement = document.activeElement;
+      const appEl = document.getElementById('app');
+      if (appEl) {
+        appEl.inert = true;
+        appEl.setAttribute('aria-hidden', 'true');
+      }
+      if (floatingNav) {
+        floatingNav.inert = true;
+        floatingNav.setAttribute('aria-hidden', 'true');
+      }
+
       confirmMessage.textContent = message;
       btnConfirmYes.textContent = 'Replace';
       btnConfirmNo.textContent = 'Cancel';
@@ -373,6 +417,9 @@
       btnConfirmYes.parentNode.insertBefore(btnMerge, btnConfirmYes);
 
       confirmDialog.style.display = 'flex';
+      if (btnConfirmNo && typeof btnConfirmNo.focus === 'function') {
+        btnConfirmNo.focus();
+      }
       updateNativeBackState();
 
       const cleanup = (val) => {
@@ -382,6 +429,18 @@
         btnConfirmYes.removeEventListener('click', onReplace);
         btnConfirmNo.removeEventListener('click', onCancel);
         btnMerge.removeEventListener('click', onMerge);
+        if (appEl) {
+          appEl.inert = false;
+          appEl.removeAttribute('aria-hidden');
+        }
+        if (floatingNav && isRootTab(currentScreen)) {
+          floatingNav.inert = false;
+          floatingNav.removeAttribute('aria-hidden');
+        }
+        if (confirmTriggerElement && typeof confirmTriggerElement.focus === 'function') {
+          try { confirmTriggerElement.focus(); } catch (e) { }
+        }
+        confirmTriggerElement = null;
         updateNativeBackState();
         resolve(val);
       };
@@ -1068,9 +1127,15 @@
         if (screenName === name) {
           el.style.display = (name === 'shelf' ? '' : 'flex');
           el.inert = false;
+          el.removeAttribute('aria-hidden');
         } else {
           el.style.display = 'none';
           el.inert = true;
+          if (name === 'form') {
+            el.setAttribute('aria-hidden', 'true');
+          } else {
+            el.removeAttribute('aria-hidden');
+          }
         }
       });
 
@@ -1101,6 +1166,21 @@
 
       updateNativeBackState();
       updateNavState(name);
+
+      if (name === 'form') {
+        if (!formTriggerElement && prevScreen !== 'form') {
+          formTriggerElement = document.activeElement;
+        }
+        if (btnCloseForm && typeof btnCloseForm.focus === 'function') {
+          try { btnCloseForm.focus(); } catch (e) { }
+        }
+      } else if (prevScreen === 'form') {
+        if (formTriggerElement && typeof formTriggerElement.focus === 'function') {
+          try { formTriggerElement.focus(); } catch (e) { }
+        }
+        formTriggerElement = null;
+      }
+
       try { window.scrollTo({ top: 0, behavior: 'instant' }); } catch (e) { }
     };
 
@@ -1180,6 +1260,9 @@
 
   // --- Novel Form (Add / Edit Full-Page Screen) ---
   function openFormModal(from = currentScreen) {
+    if (!formTriggerElement) {
+      formTriggerElement = document.activeElement;
+    }
     showScreen('form', { push: true, from });
   }
 

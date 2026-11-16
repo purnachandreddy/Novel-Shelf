@@ -333,6 +333,69 @@ async function runTests() {
     assert.ok(card5.textContent.includes('Ch. 421 / 500'));
   });
 
+  // A14: Dialog Accessibility (inert background, aria-modal, role="dialog", focus restore)
+  await test('A14', 'Dialogs set role="dialog", aria-modal, inert background, and restore focus on close', async () => {
+    const { window } = createDom();
+    const doc = window.document;
+
+    // Load sample to have cards
+    doc.getElementById('btn-load-sample').click();
+    const appEl = doc.getElementById('app');
+    const navEl = doc.getElementById('floating-bottom-nav');
+    const formModal = doc.getElementById('modal-novel-form');
+    const confirmModal = doc.getElementById('confirm-dialog');
+
+    // 1. Verify attributes on dialogs
+    assert.strictEqual(formModal.getAttribute('role'), 'dialog');
+    assert.strictEqual(formModal.getAttribute('aria-modal'), 'true');
+    assert.strictEqual(confirmModal.getAttribute('role'), 'dialog');
+    assert.strictEqual(confirmModal.getAttribute('aria-modal'), 'true');
+
+    // 2. Open form from shelf Add button
+    const addBtn = doc.getElementById('btn-add-novel-top');
+    addBtn.focus();
+    addBtn.click();
+
+    // Check background view screens & nav are inert and aria-hidden
+    assert.strictEqual(doc.getElementById('view-shelf').inert, true);
+    assert.strictEqual(doc.getElementById('view-shelf').getAttribute('aria-hidden'), 'true');
+    assert.strictEqual(navEl.inert, true);
+    assert.strictEqual(navEl.getAttribute('aria-hidden'), 'true');
+    assert.strictEqual(formModal.inert, false);
+
+    // Close form
+    doc.getElementById('btn-close-form').click();
+    assert.strictEqual(doc.getElementById('view-shelf').inert, false);
+    assert.strictEqual(doc.getElementById('view-shelf').getAttribute('aria-hidden'), null);
+    assert.strictEqual(navEl.inert, false);
+    assert.strictEqual(doc.activeElement, addBtn, 'Focus should be restored to add button');
+
+    // 3. Confirm dialog
+    const card = doc.querySelector('.novel-card');
+    card.click();
+    const deleteBtn = doc.getElementById('btn-detail-delete');
+    deleteBtn.focus();
+    deleteBtn.click(); // Triggers showConfirm()
+
+    await new Promise(r => setTimeout(r, 20));
+
+    // Confirm dialog is open
+    assert.strictEqual(confirmModal.style.display, 'flex');
+    assert.strictEqual(appEl.inert, true);
+    assert.strictEqual(appEl.getAttribute('aria-hidden'), 'true');
+    assert.strictEqual(navEl.inert, true);
+    assert.strictEqual(doc.activeElement, doc.getElementById('btn-confirm-no'), 'Focus should move inside dialog to Cancel button');
+
+    // Cancel confirm
+    doc.getElementById('btn-confirm-no').click();
+    await new Promise(r => setTimeout(r, 20));
+
+    assert.strictEqual(confirmModal.style.display, 'none');
+    assert.strictEqual(appEl.inert, false);
+    assert.strictEqual(appEl.getAttribute('aria-hidden'), null);
+    assert.strictEqual(doc.activeElement, deleteBtn, 'Focus should be restored to delete button');
+  });
+
   console.log('\n--- Test Summary ---');
   const passed = results.filter(r => r.status === 'PASS').length;
   const failed = results.filter(r => r.status === 'FAIL').length;

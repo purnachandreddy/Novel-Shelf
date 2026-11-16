@@ -506,7 +506,7 @@
     </div>
 
     <!-- Add / Edit Novel Full-Page Tab View -->
-    <div id="modal-novel-form" class="view-screen details-page-view" style="display:none;">
+    <div id="modal-novel-form" class="view-screen details-page-view" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="modal-form-title">
       <header class="details-topbar">
         <button id="btn-close-form" class="btn-back" type="button" aria-label="Back">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -756,8 +756,8 @@
   </nav>
 
   <!-- Custom Confirm Dialog (replaces native confirm() for Android) -->
-  <div id="confirm-dialog" class="modal-backdrop" style="display:none;">
-    <div class="confirm-card glass-ring" role="alertdialog" aria-modal="true" aria-labelledby="confirm-message">
+  <div id="confirm-dialog" class="modal-backdrop" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="confirm-message">
+    <div class="confirm-card glass-ring">
       <p id="confirm-message" class="confirm-message"></p>
       <div class="confirm-buttons">
         <button id="btn-confirm-no" class="btn btn-secondary">Cancel</button>
