@@ -640,6 +640,33 @@ it('safeLoad: parses valid array JSON without entering recovery mode', () => {
   assert.strictEqual(res.library[0].id, 'nov_1');
 });
 
+it('tags: deduplicates tags case-insensitively while preserving first-typed casing', () => {
+  // Test the tag deduplication logic used in form submit and import normalization
+  function dedupeTags(rawTags) {
+    const seen = new Set();
+    const result = [];
+    for (const tag of rawTags) {
+      const trimmed = String(tag || '').trim();
+      if (!trimmed) continue;
+      const lower = trimmed.toLowerCase();
+      if (!seen.has(lower)) {
+        seen.add(lower);
+        result.push(trimmed);
+      }
+    }
+    return result;
+  }
+
+  const rawInput = ['Fantasy', 'magic', 'fantasy', 'Magic', 'LITRPG', 'litrpg', 'OP MC', 'op mc'];
+  const deduped = dedupeTags(rawInput);
+  assert.deepStrictEqual(deduped, ['Fantasy', 'magic', 'LITRPG', 'OP MC']);
+
+  // Also test comma-separated string split and dedupe (as in form submit)
+  const formValue = 'Action, action, ACTION, Fantasy, Sci-Fi, sci-fi';
+  const fromForm = dedupeTags(formValue.split(','));
+  assert.deepStrictEqual(fromForm, ['Action', 'Fantasy', 'Sci-Fi']);
+});
+
 console.log(`\nTests finished: ${passed} passed, ${failed} failed.`);
 if (failed > 0) {
   process.exit(1);

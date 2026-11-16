@@ -1400,9 +1400,18 @@
     }
 
     const rating = parseFloat(formRating.value) || 0;
-    const tags = formTags.value
+    const rawTags = formTags.value
       ? formTags.value.split(',').map(t => t.trim()).filter(Boolean)
       : [];
+    const seenTags = new Set();
+    const tags = [];
+    for (const t of rawTags) {
+      const lower = t.toLowerCase();
+      if (!seenTags.has(lower)) {
+        seenTags.add(lower);
+        tags.push(t);
+      }
+    }
 
     // A12 — Cover and Link normalization
     let cover = '';
@@ -2296,6 +2305,20 @@
       finishedEstimated = false;
     }
 
+    const seenImportTags = new Set();
+    const importedTags = [];
+    if (Array.isArray(n.tags)) {
+      for (const t of n.tags) {
+        const trimmed = String(t || '').trim();
+        if (!trimmed) continue;
+        const lower = trimmed.toLowerCase();
+        if (!seenImportTags.has(lower)) {
+          seenImportTags.add(lower);
+          importedTags.push(trimmed);
+        }
+      }
+    }
+
     return {
       id: (n.id && typeof n.id === 'string' && n.id.trim())
         ? n.id.trim()
@@ -2313,7 +2336,7 @@
       source: String(n.source || '').slice(0, 200),
       link: /^https?:\/\//i.test(n.link || '') ? n.link : '',
       genre: String(n.genre || '').slice(0, 100),
-      tags: Array.isArray(n.tags) ? n.tags.map(t => String(t).trim()).filter(Boolean) : [],
+      tags: importedTags,
       notes: String(n.notes || '').slice(0, 5000),
       cover: typeof n.cover === 'string' ? n.cover : '',
       createdAt: Number(n.createdAt) || Date.now(),
