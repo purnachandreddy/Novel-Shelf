@@ -170,6 +170,79 @@ it('computeStats: excludes estimated dates from pace, avgDaysToFinish, fastest, 
   assert.deepStrictEqual(stats.completed.fastest, { title: 'Accurate Novel', days: 10, chapters: 100 });
 });
 
+it('computeStats: auto-complete via chapter increment sets finishedEstimated = false, allowing novel to count in pace stats', () => {
+  const now = new Date(2026, 10, 14);
+  // Novel that was reading with estimated completion flag from backfill
+  const novel = {
+    id: 'novel-auto',
+    title: 'Auto Completed Novel',
+    status: 'Reading',
+    started: '2026-11-04',
+    startedEstimated: false,
+    finished: '',
+    finishedEstimated: true, // was previously estimated
+    chaptersRead: 99,
+    chaptersTotal: 100
+  };
+
+  // Simulate incrementChapter() completion logic
+  novel.chaptersRead++;
+  if (novel.chaptersTotal && novel.chaptersRead >= novel.chaptersTotal && novel.status !== 'Completed') {
+    novel.status = 'Completed';
+    novel.finished = '2026-11-14'; // 10 days
+    novel.finishedEstimated = false;
+  }
+
+  const stats = StatsCalculator.computeStats([novel], 'all', now);
+  assert.strictEqual(stats.completed.count, 1);
+  assert.strictEqual(stats.completed.avgDaysToFinish, 10);
+  assert.strictEqual(stats.completed.avgReadingPace, '10.0');
+  assert.deepStrictEqual(stats.completed.fastest, { title: 'Auto Completed Novel', days: 10, chapters: 100 });
+});
+
+it('computeStats: form edit clearing finishedEstimated and startedEstimated allows novel to count in pace stats', () => {
+  const now = new Date(2026, 10, 14);
+  // Novel imported with estimated dates
+  const importedNovel = {
+    id: 'novel-edit',
+    title: 'Edited Novel',
+    status: 'Completed',
+    started: '2026-10-01',
+    finished: '2026-10-05',
+    startedEstimated: true,
+    finishedEstimated: true,
+    chaptersRead: 100,
+    chaptersTotal: 100
+  };
+
+  // Before edit: novel is excluded from pace stats
+  const beforeStats = StatsCalculator.computeStats([importedNovel], 'all', now);
+  assert.strictEqual(beforeStats.completed.count, 1);
+  assert.strictEqual(beforeStats.completed.avgReadingPace, null);
+  assert.strictEqual(beforeStats.completed.fastest, null);
+
+  // User edits form: provides actual dates
+  const formStarted = '2026-10-01';
+  const formFinished = '2026-10-11'; // changed finished date (10 days)
+
+  const startedChanged = formStarted !== importedNovel.started;
+  const finishedChanged = formFinished !== importedNovel.finished;
+
+  const editedNovel = {
+    ...importedNovel,
+    started: formStarted,
+    finished: formFinished,
+    startedEstimated: false, // user verified/entered started
+    finishedEstimated: finishedChanged ? false : importedNovel.finishedEstimated
+  };
+
+  const afterStats = StatsCalculator.computeStats([editedNovel], 'all', now);
+  assert.strictEqual(afterStats.completed.count, 1);
+  assert.strictEqual(afterStats.completed.avgDaysToFinish, 10);
+  assert.strictEqual(afterStats.completed.avgReadingPace, '10.0');
+  assert.deepStrictEqual(afterStats.completed.fastest, { title: 'Edited Novel', days: 10, chapters: 100 });
+});
+
 // 5. FEATURE 1: Estimated finish date for in-progress novels
 it('computeStats: calculates finish estimate using novel own pace when daysReading >= 3 and active', () => {
   const now = new Date(2026, 10, 14); // Nov 14, 2026

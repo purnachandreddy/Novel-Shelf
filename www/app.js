@@ -954,7 +954,8 @@
     let statusChanged = false;
     if (novel.chaptersTotal && novel.chaptersRead >= novel.chaptersTotal && novel.status !== 'Completed') {
       novel.status = 'Completed';
-      if (!novel.finished) novel.finished = localDateString();
+      novel.finished = localDateString();
+      novel.finishedEstimated = false;
       statusChanged = true;
       showToast(`🎉 Finished "${novel.title}"!`, 'success');
     } else {
@@ -1417,6 +1418,27 @@
 
     const link = normalizeUrl(formLink.value);
 
+    // Existing novel lookup to preserve creation date and properly update estimated flags
+    const existingIndex = library.findIndex(n => n.id === id);
+    const existing = existingIndex >= 0 ? library[existingIndex] : null;
+
+    let startedEstimated = false;
+    let finishedEstimated = false;
+    if (existing) {
+      // Clear startedEstimated if user explicitly changed/entered started date
+      const startedChanged = formStarted.value && formStarted.value !== existing.started;
+      startedEstimated = startedChanged ? false : Boolean(existing.startedEstimated);
+
+      // Clear finishedEstimated if status became Completed or user edited/entered finished date
+      const finishedChanged = formFinished.value && formFinished.value !== existing.finished;
+      const becameCompleted = status === 'Completed' && existing.status !== 'Completed';
+      if (becameCompleted || finishedChanged) {
+        finishedEstimated = false;
+      } else {
+        finishedEstimated = status === 'Completed' ? Boolean(existing.finishedEstimated) : false;
+      }
+    }
+
     const novelData = {
       id,
       title,
@@ -1427,8 +1449,8 @@
       rating,
       started,
       finished,
-      startedEstimated: false,
-      finishedEstimated: false,
+      startedEstimated,
+      finishedEstimated,
       source: formSource.value.trim(),
       link,
       genre: formGenre.value.trim(),
@@ -1440,7 +1462,6 @@
 
     // A4 — rollback snapshot
     const snapshot = JSON.parse(JSON.stringify(library));
-    const existingIndex = library.findIndex(n => n.id === id);
     const isNew = existingIndex < 0;
 
     if (!isNew) {
