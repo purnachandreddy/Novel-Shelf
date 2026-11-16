@@ -171,7 +171,7 @@ it('computeStats: excludes estimated dates from pace, avgDaysToFinish, fastest, 
 });
 
 // 5. FEATURE 1: Estimated finish date for in-progress novels
-it('computeStats: calculates finish estimate for reading novels using user pace, handles stale novels & single novel label', () => {
+it('computeStats: calculates finish estimate using novel own pace when daysReading >= 3 and active', () => {
   const now = new Date(2026, 10, 14); // Nov 14, 2026
   const novels = [
     {
@@ -190,6 +190,27 @@ it('computeStats: calculates finish estimate for reading novels using user pace,
       updatedAt: '2026-11-13T10:00:00.000Z', // 1 day ago (not stale)
       chaptersRead: 50,
       chaptersTotal: 150 // remaining = 100 ch -> 100 / (50/13) = 26 days -> Dec 10
+    }
+  ];
+  const stats = StatsCalculator.computeStats(novels, 'all', now);
+  const ownPace = stats.inProgressNovels.find(n => n.id === '2');
+  assert.notStrictEqual(ownPace.estimatedFinish, null);
+  assert.strictEqual(ownPace.estimatedFinish.daysLeft, 26);
+  assert.strictEqual(ownPace.estimatedFinish.targetDateFormatted, 'Dec 10');
+  assert.strictEqual(ownPace.estimatedFinish.paceBasisLabel, "at this novel's pace");
+  assert.strictEqual(ownPace.estimatedFinish.text, '~26 days left (around Dec 10)');
+});
+
+it('computeStats: falls back to overall usual pace when novel daysReading < 3', () => {
+  const now = new Date(2026, 10, 14); // Nov 14, 2026
+  const novels = [
+    {
+      id: '1',
+      title: 'Finished Benchmark',
+      status: 'Completed',
+      started: '2026-10-01',
+      finished: '2026-10-11', // 10 days
+      chaptersRead: 100 // pace = 10 ch/day
     },
     {
       id: '3',
@@ -199,6 +220,27 @@ it('computeStats: calculates finish estimate for reading novels using user pace,
       updatedAt: '2026-11-13T10:00:00.000Z', // 1 day ago (not stale)
       chaptersRead: 10,
       chaptersTotal: 110 // remaining = 100 ch -> 100 / 10 = 10 days -> Nov 24
+    }
+  ];
+  const stats = StatsCalculator.computeStats(novels, 'all', now);
+  const usualPace = stats.inProgressNovels.find(n => n.id === '3');
+  assert.notStrictEqual(usualPace.estimatedFinish, null);
+  assert.strictEqual(usualPace.estimatedFinish.daysLeft, 10);
+  assert.strictEqual(usualPace.estimatedFinish.targetDateFormatted, 'Nov 24');
+  assert.strictEqual(usualPace.estimatedFinish.paceBasisLabel, 'at your usual pace');
+  assert.strictEqual(usualPace.estimatedFinish.text, '~10 days left (around Nov 24)');
+});
+
+it('computeStats: shows stale messaging when Reading novel has not been updated in 14+ days', () => {
+  const now = new Date(2026, 10, 14); // Nov 14, 2026
+  const novels = [
+    {
+      id: '1',
+      title: 'Finished Benchmark',
+      status: 'Completed',
+      started: '2026-10-01',
+      finished: '2026-10-11',
+      chaptersRead: 100
     },
     {
       id: '4',
@@ -208,6 +250,27 @@ it('computeStats: calculates finish estimate for reading novels using user pace,
       updatedAt: '2026-10-25T10:00:00.000Z', // 20 days ago (stale!)
       chaptersRead: 80,
       chaptersTotal: 280
+    }
+  ];
+  const stats = StatsCalculator.computeStats(novels, 'all', now);
+  const stale = stats.inProgressNovels.find(n => n.id === '4');
+  assert.notStrictEqual(stale.estimatedFinish, null);
+  assert.strictEqual(stale.estimatedFinish.isStale, true);
+  assert.strictEqual(stale.estimatedFinish.daysLeft, null);
+  assert.strictEqual(stale.estimatedFinish.targetDateFormatted, null);
+  assert.strictEqual(stale.estimatedFinish.text, 'Update your progress for an estimate');
+});
+
+it('computeStats: caps finish estimate text at 1+ year left when daysLeft > 365', () => {
+  const now = new Date(2026, 10, 14); // Nov 14, 2026
+  const novels = [
+    {
+      id: '1',
+      title: 'Finished Benchmark',
+      status: 'Completed',
+      started: '2026-10-01',
+      finished: '2026-10-11',
+      chaptersRead: 100
     },
     {
       id: '5',
@@ -220,28 +283,6 @@ it('computeStats: calculates finish estimate for reading novels using user pace,
     }
   ];
   const stats = StatsCalculator.computeStats(novels, 'all', now);
-
-  const ownPace = stats.inProgressNovels.find(n => n.id === '2');
-  assert.notStrictEqual(ownPace.estimatedFinish, null);
-  assert.strictEqual(ownPace.estimatedFinish.daysLeft, 26);
-  assert.strictEqual(ownPace.estimatedFinish.targetDateFormatted, 'Dec 10');
-  assert.strictEqual(ownPace.estimatedFinish.paceBasisLabel, "at this novel's pace");
-  assert.strictEqual(ownPace.estimatedFinish.text, '~26 days left (around Dec 10)');
-
-  const usualPace = stats.inProgressNovels.find(n => n.id === '3');
-  assert.notStrictEqual(usualPace.estimatedFinish, null);
-  assert.strictEqual(usualPace.estimatedFinish.daysLeft, 10);
-  assert.strictEqual(usualPace.estimatedFinish.targetDateFormatted, 'Nov 24');
-  assert.strictEqual(usualPace.estimatedFinish.paceBasisLabel, 'at your usual pace');
-  assert.strictEqual(usualPace.estimatedFinish.text, '~10 days left (around Nov 24)');
-
-  const stale = stats.inProgressNovels.find(n => n.id === '4');
-  assert.notStrictEqual(stale.estimatedFinish, null);
-  assert.strictEqual(stale.estimatedFinish.isStale, true);
-  assert.strictEqual(stale.estimatedFinish.daysLeft, null);
-  assert.strictEqual(stale.estimatedFinish.targetDateFormatted, null);
-  assert.strictEqual(stale.estimatedFinish.text, 'Update your progress for an estimate');
-
   const massive = stats.inProgressNovels.find(n => n.id === '5');
   assert.notStrictEqual(massive.estimatedFinish, null);
   assert.strictEqual(massive.estimatedFinish.daysLeft, 987);

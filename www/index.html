@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>📚 Novel Shelf - Reading Tracker</title>
-  <meta name="description" content="A beautiful, offline-capable novel reading tracker and personal bookshelf for web novels, light novels, and books.">
+  <meta name="description"
+    content="A beautiful, offline-capable novel reading tracker and personal bookshelf for web novels, light novels, and books.">
   <meta name="theme-color" content="#0b0e14">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -12,7 +14,9 @@
   <!-- Fonts loaded with display=optional for offline resilience -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Cinzel:wght@600;700&display=optional" rel="stylesheet" media="all">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Cinzel:wght@600;700&display=optional"
+    rel="stylesheet" media="all">
   <link rel="icon" type="image/png" href="logo-small.png">
   <link rel="stylesheet" href="style.css">
   <script>
@@ -33,6 +37,7 @@
     })();
   </script>
 </head>
+
 <body>
   <!-- Progressive Blur Edge Overlays -->
   <div class="edge-blur-top" aria-hidden="true"></div>
@@ -40,7 +45,7 @@
 
   <!-- App Container -->
   <div id="app" class="app-container">
-    
+
     <!-- Shelf View Screen -->
     <div id="view-shelf" class="view-screen">
       <!-- Top Header -->
@@ -57,10 +62,22 @@
           <div class="header-actions">
             <div class="view-toggle">
               <button id="view-grid-btn" class="toggle-btn active" title="Shelf Grid View" aria-label="Grid View">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="3" y="3" width="7" height="7" rx="1.5" />
+                  <rect x="14" y="3" width="7" height="7" rx="1.5" />
+                  <rect x="14" y="14" width="7" height="7" rx="1.5" />
+                  <rect x="3" y="14" width="7" height="7" rx="1.5" />
+                </svg>
               </button>
               <button id="view-list-btn" class="toggle-btn" title="Detailed List View" aria-label="List View">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="8" y1="6" x2="21" y2="6" />
+                  <line x1="8" y1="12" x2="21" y2="12" />
+                  <line x1="8" y1="18" x2="21" y2="18" />
+                  <line x1="3" y1="6" x2="3.01" y2="6" />
+                  <line x1="3" y1="12" x2="3.01" y2="12" />
+                  <line x1="3" y1="18" x2="3.01" y2="18" />
+                </svg>
               </button>
             </div>
           </div>
@@ -68,7 +85,11 @@
 
         <!-- Sticky Search Box -->
         <div class="search-box">
-          <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2">
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.35-4.35" />
+          </svg>
           <input type="text" id="search-input" placeholder="Search by title, author, genre, tag..." autocomplete="off">
           <button id="btn-clear-search" class="clear-btn" style="display:none;" aria-label="Clear search">✕</button>
         </div>
@@ -113,41 +134,41 @@
             </button>
           </nav>
         </div>
-      
 
 
-      <!-- Active Shelf Novels Container -->
-      <section class="shelf-section">
-        <!-- Novels Grid/List Container -->
-        <div id="novels-container" class="novels-grid"></div>
 
-        <!-- Empty State (Exactly as in Novel Shelf.md) -->
-        <div id="empty-state" class="empty-state" style="display:none;">
-          <div class="empty-illustration">
-            <span class="empty-emoji">📚</span>
-            <div class="empty-glow"></div>
+        <!-- Active Shelf Novels Container -->
+        <section class="shelf-section">
+          <!-- Novels Grid/List Container -->
+          <div id="novels-container" class="novels-grid"></div>
+
+          <!-- Empty State (Exactly as in Novel Shelf.md) -->
+          <div id="empty-state" class="empty-state" style="display:none;">
+            <div class="empty-illustration">
+              <span class="empty-emoji">📚</span>
+              <div class="empty-glow"></div>
+            </div>
+            <h2 class="empty-title">No novels here yet.</h2>
+            <p class="empty-subtitle">Tap <span class="highlight-plus">＋</span> to add one.</p>
+            <div class="empty-actions">
+              <button id="btn-add-novel-empty" class="btn btn-primary">
+                <span>＋ Add Novel</span>
+              </button>
+              <button id="btn-load-sample" class="btn btn-secondary">
+                <span>Load Sample Library</span>
+              </button>
+            </div>
           </div>
-          <h2 class="empty-title">No novels here yet.</h2>
-          <p class="empty-subtitle">Tap <span class="highlight-plus">＋</span> to add one.</p>
-          <div class="empty-actions">
-            <button id="btn-add-novel-empty" class="btn btn-primary">
-              <span>＋ Add Novel</span>
-            </button>
-            <button id="btn-load-sample" class="btn btn-secondary">
-              <span>Load Sample Library</span>
-            </button>
-          </div>
-        </div>
 
-        <!-- Search / Filter Empty State -->
-        <div id="no-search-results" class="empty-state" style="display:none;">
-          <div class="empty-illustration">🔍</div>
-          <h3 class="empty-title">No matching novels found</h3>
-          <p class="empty-subtitle">Try adjusting your search terms or filter criteria.</p>
-          <button id="btn-reset-filters" class="btn btn-secondary">Reset Filters</button>
-        </div>
-      </section>
-    </main>
+          <!-- Search / Filter Empty State -->
+          <div id="no-search-results" class="empty-state" style="display:none;">
+            <div class="empty-illustration">🔍</div>
+            <h3 class="empty-title">No matching novels found</h3>
+            <p class="empty-subtitle">Try adjusting your search terms or filter criteria.</p>
+            <button id="btn-reset-filters" class="btn btn-secondary">Reset Filters</button>
+          </div>
+        </section>
+      </main>
     </div><!-- /#view-shelf -->
 
     <!-- Novel Details Full-Page Tab View -->
@@ -155,7 +176,9 @@
       <!-- Details Header / Top Bar -->
       <header class="details-topbar">
         <button id="btn-back-shelf" class="btn-back" aria-label="Back to Shelf">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
           <span>Shelf</span>
         </button>
 
@@ -163,10 +186,17 @@
 
         <div class="details-header-actions">
           <button id="btn-detail-edit" class="icon-btn" title="Edit Novel" aria-label="Edit Novel">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
           </button>
-          <button id="btn-detail-delete" class="icon-btn icon-btn-danger" title="Delete Novel" aria-label="Delete Novel">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          <button id="btn-detail-delete" class="icon-btn icon-btn-danger" title="Delete Novel"
+            aria-label="Delete Novel">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            </svg>
           </button>
         </div>
       </header>
@@ -202,54 +232,80 @@
           <div class="stats-grid">
             <div class="stat-card glass-ring">
               <div class="stat-card-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                </svg>
               </div>
               <span class="stat-num" id="stat-total-novels">0</span>
-              <span class="stat-label">Total Novels</span>
+              <div class="stat-meta-block">
+                <span class="stat-label">Total Novels</span>
+              </div>
             </div>
 
             <div class="stat-card glass-ring">
               <div class="stat-card-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="9 11 12 14 22 4" />
+                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                </svg>
               </div>
               <span class="stat-num" id="stat-novels-finished">0</span>
-              <span class="stat-label">Completed</span>
+              <div class="stat-meta-block">
+                <span class="stat-label">Completed</span>
+              </div>
             </div>
 
             <div class="stat-card glass-ring">
               <div class="stat-card-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon
+                    points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
               </div>
               <span class="stat-num" id="stat-avg-rating">—</span>
-              <span class="stat-label">Avg Rating</span>
-              <div class="stat-subtext-block"><span class="stat-subtext" id="stat-avg-rating-sub">from 0 ratings</span></div>
+              <div class="stat-meta-block">
+                <span class="stat-label">Average Rating</span>
+                <span class="stat-subtext" id="stat-avg-rating-sub">from 0 ratings</span>
+              </div>
             </div>
 
             <div class="stat-card glass-ring">
               <div class="stat-card-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-6"/></svg>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 20V10M18 20V4M6 20v-6" />
+                </svg>
               </div>
               <span class="stat-num" id="stat-chapters-read">0</span>
-              <span class="stat-label">Chapters Read</span>
-              <div class="stat-subtext-block"><span class="stat-subtext" id="stat-chapters-sub">0 completed • 0 reading</span></div>
+              <div class="stat-meta-block">
+                <span class="stat-label">Chapters Read</span>
+                <span class="stat-subtext" id="stat-chapters-sub">0 completed • 0 reading</span>
+              </div>
             </div>
           </div>
 
           <!-- Pace & Completion Speed Section (Filtered) -->
           <div class="stats-section-card" id="section-pace" style="display:none;">
             <div class="stats-card-heading">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
               <h3>Reading Pace &amp; Speed</h3>
             </div>
             <div class="pace-stats-grid">
               <div class="pace-item">
                 <span class="pace-val" id="stat-avg-days">—</span>
-                <span class="pace-label">AVG DAYS TO FINISH</span>
+                <div class="stat-meta-block">
+                  <span class="pace-label">AVG DAYS TO FINISH</span>
+                </div>
               </div>
               <div class="pace-item">
                 <span class="pace-val" id="stat-avg-pace">—</span>
-                <span class="pace-label">CHAPTERS / DAY</span>
-                <div class="stat-subtext-block"><span class="stat-subtext" id="stat-avg-pace-sub"></span></div>
+                <div class="stat-meta-block">
+                  <span class="pace-label">CHAPTERS / DAY</span>
+                  <span class="stat-subtext" id="stat-avg-pace-sub"></span>
+                </div>
               </div>
             </div>
             <div class="pace-records" id="pace-records">
@@ -260,7 +316,12 @@
           <!-- Monthly Completions Chart -->
           <div class="stats-section-card" id="section-monthly" style="display:none;">
             <div class="stats-card-heading">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
               <h3>Novels Completed (Past 6 Months)</h3>
             </div>
             <div class="monthly-bar-chart" id="monthly-bar-chart"></div>
@@ -269,7 +330,10 @@
           <!-- In-Progress Novels -->
           <div class="stats-section-card" id="section-in-progress" style="display:none;">
             <div class="stats-card-heading">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 8 14"/></svg>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 8 14" />
+              </svg>
               <h3>Currently Reading</h3>
             </div>
             <div class="reading-progress-list" id="reading-progress-list"></div>
@@ -279,20 +343,28 @@
           <div class="stats-section-card" id="section-genres" style="display:none;">
             <div class="stats-card-heading">
               <div class="stats-heading-with-tag">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                </svg>
                 <h3>Genre Breakdown</h3>
               </div>
               <span class="all-time-tag">All time</span>
             </div>
             <div class="genre-breakdown-list" id="genre-breakdown-list"></div>
-            <button type="button" id="btn-toggle-genres" class="btn-toggle-genres" style="display:none;">Show all</button>
+            <button type="button" id="btn-toggle-genres" class="btn-toggle-genres" style="display:none;">Show
+              all</button>
           </div>
 
           <!-- Dropped Analysis (All Time) -->
           <div class="stats-section-card" id="section-dropped" style="display:none;">
             <div class="stats-card-heading">
               <div class="stats-heading-with-tag">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="15" y1="9" x2="9" y2="15" />
+                  <line x1="9" y1="9" x2="15" y2="15" />
+                </svg>
                 <h3>Dropped Analysis</h3>
               </div>
               <span class="all-time-tag">All time</span>
@@ -318,7 +390,10 @@
           <div class="stats-section-card" id="section-top-lists" style="display:none;">
             <div class="stats-card-heading">
               <div class="stats-heading-with-tag">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon
+                    points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
                 <h3>Top Lists</h3>
               </div>
               <span class="all-time-tag">All time</span>
@@ -374,7 +449,8 @@
 
       <div class="details-page-body">
         <div class="backup-tab-container">
-          <p class="backup-desc">Your library is stored only on this device. Uninstalling the app or clearing its data deletes it, so export a backup regularly.</p>
+          <p class="backup-desc">All your novels and reading history are stored securely offline on this device. You can
+            export a backup file or restore from one anytime.</p>
 
           <div class="backup-card">
             <div class="backup-card-info">
@@ -415,15 +491,13 @@
           <div class="backup-card">
             <div class="backup-card-info">
               <h3>Reduce Effects</h3>
-              <p>Disable blurs, ambient background glow, spring animations, and view transitions for solid surfaces and maximum battery life.</p>
+              <p>Disable blurs, ambient background glow, spring animations, and view transitions for solid surfaces and
+                maximum battery life.</p>
             </div>
-            <div class="toggle-control-group">
-              <span id="toggle-reduce-effects-status" class="toggle-status-text">Off</span>
-              <label class="toggle-switch" aria-label="Toggle reduce effects">
-                <input type="checkbox" id="toggle-reduce-effects">
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
+            <label class="toggle-switch" aria-label="Toggle reduce effects">
+              <input type="checkbox" id="toggle-reduce-effects">
+              <span class="toggle-slider"></span>
+            </label>
           </div>
         </div>
       </div>
@@ -433,7 +507,9 @@
     <div id="modal-novel-form" class="view-screen details-page-view" style="display:none;">
       <header class="details-topbar">
         <button id="btn-close-form" class="btn-back" type="button" aria-label="Back">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
           <span>Back</span>
         </button>
         <h2 id="modal-form-title" class="details-header-title">Add novel</h2>
@@ -454,12 +530,17 @@
                   <span class="cover-plus-icon">＋</span>
                   <span class="cover-text">Cover<br>photo</span>
                 </div>
-                <button type="button" id="btn-remove-cover" class="cover-remove-btn" style="display:none;" title="Remove cover">✕</button>
+                <button type="button" id="btn-remove-cover" class="cover-remove-btn" style="display:none;"
+                  title="Remove cover">✕</button>
               </div>
 
               <div class="cover-options">
                 <label class="btn btn-secondary btn-sm file-picker-label">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <path d="m21 15-5-5L5 21" />
+                  </svg>
                   Choose File
                   <input type="file" id="cover-file-input" accept="image/*" style="display:none;">
                 </label>
@@ -523,10 +604,11 @@
           <!-- Rating with Half-Stars -->
           <div class="form-group">
             <div class="rating-label-row">
-              <label class="form-label">My rating <span class="rating-hint">(tap a star’s left half for .5)</span></label>
+              <label class="form-label">My rating <span class="rating-hint">(tap a star’s left half for
+                  .5)</span></label>
               <span id="rating-value-display" class="rating-badge">0.0 ★</span>
             </div>
-            
+
             <div class="interactive-star-rating" id="star-rating-control" role="radiogroup" aria-label="Novel rating">
               <!-- 5 Stars with left/right halves -->
               <div class="star-wrapper" data-star="1">
@@ -581,7 +663,8 @@
           <div class="form-row">
             <div class="form-group flex-1">
               <label for="form-source" class="form-label">Source</label>
-              <input type="text" id="form-source" placeholder="e.g. Royal Road, Webnovel, Novel buddy" autocomplete="off">
+              <input type="text" id="form-source" placeholder="e.g. Royal Road, Webnovel, Novel buddy"
+                autocomplete="off">
             </div>
 
             <div class="form-group flex-1">
@@ -615,7 +698,8 @@
           <!-- Notes -->
           <div class="form-group">
             <label for="form-notes" class="form-label">Notes</label>
-            <textarea id="form-notes" rows="4" placeholder="Your review, thoughts, favorite quotes, or bookmark notes..."></textarea>
+            <textarea id="form-notes" rows="4"
+              placeholder="Your review, thoughts, favorite quotes, or bookmark notes..."></textarea>
           </div>
 
           <div class="form-actions-bottom" style="display:flex; gap:12px; margin-top:24px; padding-bottom:30px;">
@@ -634,22 +718,38 @@
   <nav id="floating-bottom-nav" class="floating-nav-container" aria-label="Main Navigation">
     <div class="nav-pill glass-ring" role="tablist" aria-label="App Sections">
       <div id="nav-active-indicator" class="nav-active-indicator"></div>
-      <button id="nav-tab-shelf" class="nav-tab-btn active" role="tab" aria-selected="true" aria-controls="view-shelf" data-tab="shelf" data-squish aria-label="Library Shelf">
-        <svg class="nav-tab-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      <button id="nav-tab-shelf" class="nav-tab-btn active" role="tab" aria-selected="true" aria-controls="view-shelf"
+        data-tab="shelf" data-squish aria-label="Library Shelf">
+        <svg class="nav-tab-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+        </svg>
         <span class="nav-tab-label">Shelf</span>
       </button>
-      <button id="nav-tab-stats" class="nav-tab-btn" role="tab" aria-selected="false" aria-controls="view-stats" data-tab="stats" data-squish aria-label="Reading Statistics">
-        <svg class="nav-tab-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+      <button id="nav-tab-stats" class="nav-tab-btn" role="tab" aria-selected="false" aria-controls="view-stats"
+        data-tab="stats" data-squish aria-label="Reading Statistics">
+        <svg class="nav-tab-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2">
+          <path d="M18 20V10M12 20V4M6 20v-6" />
+        </svg>
         <span class="nav-tab-label">Stats</span>
       </button>
-      <button id="nav-tab-backup" class="nav-tab-btn" role="tab" aria-selected="false" aria-controls="view-backup" data-tab="backup" data-squish aria-label="Backup and Settings">
-        <svg class="nav-tab-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+      <button id="nav-tab-backup" class="nav-tab-btn" role="tab" aria-selected="false" aria-controls="view-backup"
+        data-tab="backup" data-squish aria-label="Backup and Settings">
+        <svg class="nav-tab-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+        </svg>
         <span class="nav-tab-label">Backup</span>
       </button>
     </div>
 
     <button id="btn-add-novel-top" class="nav-add-btn glass-ring" aria-label="Add novel" title="Add novel" data-squish>
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <line x1="12" y1="5" x2="12" y2="19" />
+        <line x1="5" y1="12" x2="19" y2="12" />
+      </svg>
     </button>
   </nav>
 
@@ -671,4 +771,5 @@
   <script src="stats-calculator.js"></script>
   <script src="app.js"></script>
 </body>
+
 </html>
