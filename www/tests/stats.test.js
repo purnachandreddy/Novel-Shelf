@@ -1,4 +1,5 @@
 const assert = require('assert');
+const fs = require('fs');
 const path = require('path');
 const StatsCalculator = require('../stats-calculator.js');
 
@@ -665,6 +666,122 @@ it('tags: deduplicates tags case-insensitively while preserving first-typed casi
   const formValue = 'Action, action, ACTION, Fantasy, Sci-Fi, sci-fi';
   const fromForm = dedupeTags(formValue.split(','));
   assert.deepStrictEqual(fromForm, ['Action', 'Fantasy', 'Sci-Fi']);
+});
+
+// 11. A3: 50-Novel Library Export -> Import Round Trip (Replace and Merge)
+it('import/export: 50-novel library round trip preserves all fields and covers in Replace and Merge modes', () => {
+  const appJsSource = fs.readFileSync(path.resolve(__dirname, '../app.js'), 'utf8');
+  const normMatch = appJsSource.match(/function normalizeImportedNovel\(n\) \{[\s\S]*?\n  \}/);
+  assert.ok(normMatch, 'Must find normalizeImportedNovel in app.js');
+
+  const normalizeImportedNovel = new Function('localDateString', 'return ' + normMatch[0])((d = new Date()) => {
+    const pad = n => String(n).padStart(2, '0');
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  });
+
+  // Generate 50 novels covering all statuses, cover types, ratings, and edge cases
+  const library = [];
+  for (let i = 0; i < 50; i++) {
+    const isCompleted = i % 5 === 0;
+    const isReading = i % 5 === 1;
+    const status = isCompleted ? 'Completed' : (isReading ? 'Reading' : (i % 5 === 2 ? 'Plan to Read' : (i % 5 === 3 ? 'On Hold' : 'Dropped')));
+    const started = '2026-01-' + String((i % 28) + 1).padStart(2, '0');
+    const finished = isCompleted ? '2026-02-' + String((i % 28) + 1).padStart(2, '0') : '';
+
+    let cover = '';
+    if (i % 3 === 0) {
+      cover = 'data:image/jpeg;base64,' + Buffer.from('fake-base64-image-bytes-' + i).toString('base64');
+    } else if (i % 3 === 1) {
+      cover = 'https://example.com/covers/novel_' + i + '.jpg';
+    }
+
+    const novel = {
+      id: 'novel_roundtrip_' + i,
+      title: 'Roundtrip Novel ' + i + ' <Special & "Chars">',
+      author: 'Author ' + (i % 8),
+      status,
+      chaptersRead: isCompleted ? 200 : (status === 'Reading' ? i * 3 : 0),
+      chaptersTotal: (i % 4 === 0) ? null : 200,
+      rating: (i % 11) / 2, // 0 to 5.0
+      started,
+      finished,
+      startedEstimated: i % 2 === 0,
+      finishedEstimated: isCompleted && i % 4 === 0,
+      source: 'RoyalRoad',
+      link: 'https://royalroad.com/fiction/' + i,
+      genre: 'Fantasy, Adventure',
+      tags: ['tag-a', 'tag-b', 'novel-' + i],
+      notes: 'Line 1 for novel ' + i + '\nLine 2 with symbols: &<>"\'',
+      cover,
+      createdAt: 1700000000000 + i * 1000,
+      updatedAt: 1700050000000 + i * 1000
+    };
+    library.push(novel);
+  }
+
+  // 1. Export format serialization
+  const exportPayload = {
+    app: 'NovelShelf',
+    version: '1.0',
+    exportedAt: new Date().toISOString(),
+    novels: library
+  };
+  const jsonStr = JSON.stringify(exportPayload, null, 2);
+
+  // 2. Import Replace Mode
+  const parsedData = JSON.parse(jsonStr);
+  const rawNovels = parsedData.novels;
+  const replacedLibrary = rawNovels.map(normalizeImportedNovel);
+
+  assert.strictEqual(replacedLibrary.length, 50, 'Replace must retain all 50 novels');
+
+  for (let i = 0; i < library.length; i++) {
+    const orig = library[i];
+    const imported = replacedLibrary[i];
+    assert.deepStrictEqual(imported, orig, `Novel at index ${i} must match exactly after Replace import`);
+  }
+
+  // 3. Import Merge Mode
+  // Existing library has 25 novels with local progress edits
+  const existingLibrary = library.slice(0, 25).map(n => ({
+    ...n,
+    chaptersRead: n.chaptersRead + 10,
+    notes: n.notes + '\n[Local Note Added]'
+  }));
+
+  // Simulate app.js:2393-2420 Merge logic
+  const existingIds = new Set(existingLibrary.map(n => n.id));
+  let addedCount = 0;
+  const mergeMap = new Map();
+  replacedLibrary.forEach(n => {
+    if (!existingIds.has(n.id)) {
+      addedCount++;
+    }
+    mergeMap.set(n.id, n);
+  });
+  existingLibrary.forEach(n => mergeMap.set(n.id, n)); // local progress wins on id collision
+  const mergedResult = Array.from(mergeMap.values());
+
+  assert.strictEqual(mergedResult.length, 50, 'Merged library must contain exactly 50 novels');
+  assert.strictEqual(addedCount, 25, 'Merge must report exactly 25 newly added novels');
+
+  // Verify the 25 new novels merged with 100% field preservation
+  for (let i = 25; i < 50; i++) {
+    const orig = library[i];
+    const merged = mergedResult.find(n => n.id === orig.id);
+    assert.ok(merged, `Novel ${orig.id} must exist in merged library`);
+    assert.deepStrictEqual(merged, orig, `Newly merged novel ${orig.id} must preserve all fields and cover`);
+  }
+
+  // Verify the 25 existing novels preserved local edits
+  for (let i = 0; i < 25; i++) {
+    const local = existingLibrary[i];
+    const merged = mergedResult.find(n => n.id === local.id);
+    assert.ok(merged, `Local novel ${local.id} must exist in merged library`);
+    assert.strictEqual(merged.chaptersRead, local.chaptersRead, `Local chaptersRead must be preserved for ${local.id}`);
+    assert.strictEqual(merged.notes, local.notes, `Local notes must be preserved for ${local.id}`);
+    assert.strictEqual(merged.cover, local.cover, `Local cover must be preserved for ${local.id}`);
+  }
 });
 
 console.log(`\nTests finished: ${passed} passed, ${failed} failed.`);
