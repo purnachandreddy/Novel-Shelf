@@ -1,0 +1,21 @@
+{
+  "name": "tracker",
+  "version": "1.0.0",
+  "description": "A fast, lightweight, dark-glass novel tracking app for Android powered by an optimized WebView with ColorOS 17-inspired Living Flow design.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "node www/tests/stats.test.js && node www/tests/test.js",
+    "test:stats": "node www/tests/stats.test.js",
+    "test:dom": "node www/tests/test.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "jsdom": "^31.0.1"
+  }
+}

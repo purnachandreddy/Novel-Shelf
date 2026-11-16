@@ -26,6 +26,20 @@ function createDom(initialStorage = {}) {
   window.HTMLElement.prototype.scrollIntoView = function() {};
   window.scrollTo = function() {};
 
+  // Mock history navigation for JSDOM
+  const historyStack = [];
+  const origPushState = window.history.pushState.bind(window.history);
+  window.history.pushState = function(state, unused, url) {
+    historyStack.push(state);
+    origPushState(state, unused, url);
+  };
+  window.history.back = function() {
+    historyStack.pop();
+    const prevState = historyStack[historyStack.length - 1] || null;
+    origPushState(prevState, '', '');
+    window.dispatchEvent(new window.PopStateEvent('popstate', { state: prevState }));
+  };
+
   // Evaluate app script once in clean DOM
   window.eval(js);
   return { dom, window };

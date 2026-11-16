@@ -1382,6 +1382,9 @@
     let read = Math.max(0, parseInt(formChaptersRead.value, 10) || 0);
     const totalRaw = parseInt(formChaptersTotal.value, 10);
     const total = isNaN(totalRaw) || totalRaw <= 0 ? null : totalRaw;
+    if (total && read > total) {
+      read = total;
+    }
     let status = formStatus.value;
     let started = formStarted.value || localDateString();
     let finished = formFinished.value;
