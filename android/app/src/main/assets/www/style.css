@@ -576,6 +576,18 @@ body.ambient-paused::after {
   z-index: var(--z-search);
 }
 
+.clear-btn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 44px;
+  min-height: 44px;
+  width: 100%;
+  height: 100%;
+}
+
 /* Fix #9 — sort/genre filter row */
 .filter-row {
   display: flex;
@@ -664,6 +676,7 @@ select option {
 }
 
 .toggle-btn {
+  position: relative;
   background: transparent;
   border: none;
   padding: 6px 9px;
@@ -675,6 +688,18 @@ select option {
   justify-content: center;
   transition: all var(--t-fast) var(--ease-out);
   touch-action: manipulation;
+}
+
+.toggle-btn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 44px;
+  min-height: 44px;
+  width: 100%;
+  height: 100%;
 }
 
 .toggle-btn.active {
@@ -2363,6 +2388,18 @@ textarea {
   touch-action: manipulation;
 }
 
+.cover-remove-btn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 44px;
+  min-height: 44px;
+  width: 100%;
+  height: 100%;
+}
+
 .cover-options {
   flex: 1;
   display: flex;
@@ -2456,6 +2493,7 @@ textarea {
 }
 
 .btn-clear-rating {
+  position: relative;
   margin-left: auto;
   background: transparent;
   border: none;
@@ -2469,6 +2507,18 @@ textarea {
   transition: color var(--t-fast);
 }
 
+.btn-clear-rating::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 44px;
+  min-height: 44px;
+  width: 100%;
+  height: 100%;
+}
+
 .btn-clear-rating:hover {
   color: var(--text-secondary);
 }
@@ -2480,6 +2530,7 @@ textarea {
 }
 
 .btn-quick-date {
+  position: relative;
   background: var(--bg-hover);
   border: 1px solid var(--border-subtle);
   border-radius: var(--r-md);
@@ -2491,6 +2542,18 @@ textarea {
   white-space: nowrap;
   touch-action: manipulation;
   transition: all var(--t-fast);
+}
+
+.btn-quick-date::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 44px;
+  min-height: 44px;
+  width: 100%;
+  height: 100%;
 }
 
 .btn-quick-date:hover {
@@ -2508,6 +2571,7 @@ textarea {
 }
 
 .pill-btn {
+  position: relative;
   background: var(--bg-elevated);
   border: 1px solid var(--border-subtle);
   border-radius: var(--r-full);
@@ -2518,6 +2582,18 @@ textarea {
   cursor: pointer;
   transition: all var(--t-fast) var(--ease-out);
   touch-action: manipulation;
+}
+
+.pill-btn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 44px;
+  min-height: 44px;
+  width: 100%;
+  height: 100%;
 }
 
 .pill-btn:hover,
@@ -2536,6 +2612,7 @@ textarea {
 }
 
 .status-pill-btn {
+  position: relative;
   background: var(--bg-elevated);
   border: 1px solid var(--border-subtle);
   border-radius: var(--r-full);
@@ -2551,6 +2628,18 @@ textarea {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+.status-pill-btn::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 44px;
+  min-height: 44px;
+  width: 100%;
+  height: 100%;
 }
 
 .status-pill-btn::before {
