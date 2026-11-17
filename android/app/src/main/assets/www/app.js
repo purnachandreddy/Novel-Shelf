@@ -35,6 +35,25 @@
     return dateStr;
   }
 
+  function formatDisplayDate(dateStr) {
+    if (window.formatDisplayDate) return window.formatDisplayDate(dateStr);
+    if (window.StatsCalculator && window.StatsCalculator.formatDisplayDate) {
+      return window.StatsCalculator.formatDisplayDate(dateStr);
+    }
+    if (!dateStr || typeof dateStr !== 'string') return '';
+    const parts = dateStr.trim().split('-');
+    if (parts.length === 3) {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const y = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10);
+      const d = parseInt(parts[2], 10);
+      if (!isNaN(y) && m >= 1 && m <= 12 && !isNaN(d)) {
+        return `${d} ${months[m - 1]} ${y}`;
+      }
+    }
+    return dateStr;
+  }
+
   let library = [];
   let activeStatusFilter = 'ALL';
   let activeGenreFilter = 'ALL';
@@ -1318,8 +1337,8 @@
     }
 
     const dateStr = [
-      novel.started ? 'Started: ' + escHtml(novel.started) : null,
-      novel.finished ? 'Finished: ' + escHtml(novel.finished) : null
+      novel.started ? 'Started: ' + escHtml(formatDisplayDate(novel.started)) : null,
+      novel.finished ? 'Finished: ' + escHtml(formatDisplayDate(novel.finished)) : null
     ].filter(Boolean).join('<br>') || '—';
 
     detailBodyContent.innerHTML = `
@@ -1414,6 +1433,9 @@
       window.updateCustomDate(formStarted);
       window.updateCustomDate(formFinished);
     }
+    const titleErrorEl = document.getElementById('form-title-error');
+    if (titleErrorEl) titleErrorEl.style.display = 'none';
+    formTitle.classList.remove('input-error', 'input-shake');
     // Reset genre quick pills visual state
     const genrePills = document.getElementById('genre-quick-pills');
     if (genrePills) genrePills.querySelectorAll('.pill-btn').forEach(p => p.classList.remove('active'));
@@ -1440,6 +1462,9 @@
       window.updateCustomDate(formStarted);
       window.updateCustomDate(formFinished);
     }
+    const titleErrorEl = document.getElementById('form-title-error');
+    if (titleErrorEl) titleErrorEl.style.display = 'none';
+    formTitle.classList.remove('input-error', 'input-shake');
     formSource.value = novel.source || '';
     formLink.value = novel.link || '';
     formGenre.value = novel.genre || '';
@@ -1470,11 +1495,25 @@
     e.preventDefault();
 
     const title = formTitle.value.trim();
+    const titleErrorEl = document.getElementById('form-title-error');
     if (!title) {
-      showToast('Please enter a novel title', 'error');
+      if (titleErrorEl) {
+        titleErrorEl.textContent = 'Title is required';
+        titleErrorEl.style.display = 'block';
+      }
+      formTitle.classList.add('input-error');
+      formTitle.classList.remove('input-shake');
+      void formTitle.offsetWidth; // trigger animation reflow
+      formTitle.classList.add('input-shake');
+      showToast('Title is required', 'error');
       formTitle.focus();
+      if (window.Motion && typeof window.Motion.haptic === 'function') {
+        window.Motion.haptic('warn');
+      }
       return;
     }
+    if (titleErrorEl) titleErrorEl.style.display = 'none';
+    formTitle.classList.remove('input-error', 'input-shake');
 
     const id = formNovelId.value || 'novel_' + Date.now();
     let read = Math.max(0, parseInt(formChaptersRead.value, 10) || 0);
@@ -2306,8 +2345,8 @@
       const title = novel.title || 'Untitled';
       const ch = novel.chaptersRead != null ? novel.chaptersRead : 0;
 
-      const sDate = formatDateShort(novel.started);
-      const fDate = formatDateShort(novel.finished);
+      const sDate = formatDisplayDate(novel.started);
+      const fDate = formatDisplayDate(novel.finished);
       let dateLine = '';
       if (sDate && fDate) {
         dateLine = `${sDate} - ${fDate}`;
@@ -2618,6 +2657,16 @@
     if (btnCloseForm) btnCloseForm.addEventListener('click', () => closeFormModal(true));
     if (btnCancelForm) btnCancelForm.addEventListener('click', () => closeFormModal(true));
     if (novelForm) novelForm.addEventListener('submit', handleFormSubmit);
+
+    if (formTitle) {
+      formTitle.addEventListener('input', () => {
+        if (formTitle.value.trim()) {
+          formTitle.classList.remove('input-error', 'input-shake');
+          const titleErrorEl = document.getElementById('form-title-error');
+          if (titleErrorEl) titleErrorEl.style.display = 'none';
+        }
+      });
+    }
 
     // Stats Screen (Full-page tab)
     if (btnStatsToggle) btnStatsToggle.addEventListener('click', openStatsView);

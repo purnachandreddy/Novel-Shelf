@@ -82,6 +82,24 @@
   }
 
   /**
+   * Unified display format: YYYY-MM-DD -> "17 Nov 2026"
+   */
+  function formatDisplayDate(dateStr) {
+    if (!dateStr || typeof dateStr !== 'string') return '';
+    const parts = dateStr.trim().split('-');
+    if (parts.length === 3) {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10);
+      const day = parseInt(parts[2], 10);
+      if (!isNaN(year) && month >= 1 && month <= 12 && !isNaN(day)) {
+        return `${day} ${months[month - 1]} ${year}`;
+      }
+    }
+    return dateStr;
+  }
+
+  /**
    * Check if a YYYY-MM-DD finished date falls within the time filter.
    * filter: 'all' | 'year' | 'month'
    */
@@ -580,6 +598,7 @@
     parseLocalDate,
     formatLocalDate,
     formatDateShort,
+    formatDisplayDate,
     diffDays,
     formatTargetDate,
     isWithinFilter,

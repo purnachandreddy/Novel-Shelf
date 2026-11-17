@@ -554,6 +554,7 @@
             <div class="form-group flex-1">
               <label for="form-title" class="form-label required">Title</label>
               <input type="text" id="form-title" placeholder="e.g. Lord of the Mysteries" required>
+              <div id="form-title-error" class="form-inline-error" role="alert" style="display:none;">Title is required</div>
             </div>
             <div class="form-group flex-1">
               <label for="form-author" class="form-label">Author</label>
@@ -602,8 +603,7 @@
           <!-- Rating with Half-Stars -->
           <div class="form-group">
             <div class="rating-label-row">
-              <label class="form-label">My rating <span class="rating-hint">(tap a star’s left half for
-                  .5)</span></label>
+              <label class="form-label">MY RATING</label>
               <span id="rating-value-display" class="rating-badge">0.0 ★</span>
             </div>
 
@@ -636,6 +636,7 @@
               </div>
               <button type="button" id="btn-clear-rating" class="btn-clear-rating" title="Clear rating" aria-label="Clear rating">Clear</button>
             </div>
+            <div class="rating-muted-hint">Tap a star to rate, tap again to clear (tap left half for .5)</div>
             <input type="hidden" id="form-rating" value="0">
           </div>
 
@@ -690,7 +691,7 @@
           <!-- Tags -->
           <div class="form-group">
             <label for="form-tags" class="form-label">Tags (comma separated)</label>
-            <input type="text" id="form-tags" placeholder="e.g. Magic, Time Loop, Overpowered MC, Kingdom Building">
+            <input type="text" id="form-tags" placeholder="e.g. cultivation, transmigration, slow burn">
           </div>
 
           <!-- Notes -->
@@ -700,7 +701,7 @@
               placeholder="Your review, thoughts, favorite quotes, or bookmark notes..."></textarea>
           </div>
 
-          <div class="form-actions-bottom" style="display:flex; gap:12px; margin-top:24px; padding-bottom:30px;">
+          <div class="form-actions-bottom">
             <button type="button" id="btn-cancel-form" class="btn btn-secondary flex-1">Cancel</button>
             <button type="submit" id="btn-save-novel" class="btn btn-primary flex-1">
               <span>Save Novel</span>

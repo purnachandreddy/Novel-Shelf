@@ -653,6 +653,49 @@ async function runTests() {
     assert.strictEqual(finishedInput.value, '2026-10-20');
   });
 
+  // A19: Date format helper: parses and formats correctly across months/years
+  await test('A19', 'formatDisplayDate parses and formats correctly across months, years, leap days', () => {
+    const { window } = createDom();
+    assert.strictEqual(window.formatDisplayDate('2026-11-17'), '17 Nov 2026');
+    assert.strictEqual(window.formatDisplayDate('2028-02-29'), '29 Feb 2028');
+    assert.strictEqual(window.formatDisplayDate('2024-01-01'), '1 Jan 2024');
+    assert.strictEqual(window.formatDisplayDate('2025-12-31'), '31 Dec 2025');
+    assert.strictEqual(window.formatDisplayDate(''), '');
+    assert.strictEqual(window.formatDisplayDate(null), '');
+  });
+
+  // A20: Empty title validation shows error and does not save
+  await test('A20', 'Empty title validation shows inline error, shakes input, and prevents saving', () => {
+    const { window } = createDom();
+    const doc = window.document;
+
+    // Open novel form
+    doc.getElementById('btn-add-novel-top').click();
+
+    const form = doc.getElementById('novel-form');
+    const titleInput = doc.getElementById('form-title');
+    const titleError = doc.getElementById('form-title-error');
+
+    titleInput.value = '   '; // empty/whitespace
+    form.dispatchEvent(new window.Event('submit', { cancelable: true, bubbles: true }));
+
+    // Verify inline error is visible
+    assert.strictEqual(titleError.style.display, 'block');
+    assert.strictEqual(titleError.textContent, 'Title is required');
+    assert.ok(titleInput.classList.contains('input-error'), 'Title input should have input-error class');
+    assert.ok(titleInput.classList.contains('input-shake'), 'Title input should have input-shake class');
+
+    // Verify no novel was saved to shelf
+    const novelCards = doc.querySelectorAll('.novel-card');
+    assert.strictEqual(novelCards.length, 0, 'No novel should be added on validation error');
+
+    // Type a title and verify error disappears
+    titleInput.value = 'Lord of the Mysteries';
+    titleInput.dispatchEvent(new window.Event('input', { bubbles: true }));
+    assert.strictEqual(titleError.style.display, 'none');
+    assert.strictEqual(titleInput.classList.contains('input-error'), false);
+  });
+
   console.log('\n--- Test Summary ---');
   const passed = results.filter(r => r.status === 'PASS').length;
   const failed = results.filter(r => r.status === 'FAIL').length;
