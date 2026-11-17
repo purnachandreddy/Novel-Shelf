@@ -1446,11 +1446,39 @@
 
   function autoGrowNotes(el) {
     if (!el) return;
-    el.style.height = 'auto';
     const minH = 96;
     const maxH = Math.min((window.innerHeight || 800) * 0.4, 300);
     const newH = Math.max(minH, Math.min(el.scrollHeight || minH, maxH));
     el.style.height = `${newH}px`;
+  }
+
+  function updateTagsPreview() {
+    const container = document.getElementById('tags-preview-container');
+    if (!container || !formTags) return;
+    const raw = formTags.value || '';
+    const tags = raw.split(',').map(t => t.trim()).filter(Boolean);
+    container.innerHTML = '';
+    if (tags.length === 0) {
+      container.style.display = 'none';
+      return;
+    }
+    container.style.display = 'flex';
+    tags.forEach((t, idx) => {
+      const chip = document.createElement('span');
+      chip.className = 'tag-preview-chip';
+      const textSpan = document.createElement('span');
+      textSpan.className = 'tag-chip-text';
+      textSpan.textContent = t;
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'tag-chip-remove';
+      removeBtn.dataset.index = String(idx);
+      removeBtn.setAttribute('aria-label', `Remove tag ${t}`);
+      removeBtn.textContent = '✕';
+      chip.appendChild(textSpan);
+      chip.appendChild(removeBtn);
+      container.appendChild(chip);
+    });
   }
 
   function openAddModal() {
@@ -1477,6 +1505,7 @@
     // Reset genre quick pills visual state
     const genrePills = document.getElementById('genre-quick-pills');
     if (genrePills) genrePills.querySelectorAll('.pill-btn').forEach(p => p.classList.remove('active'));
+    updateTagsPreview();
     openFormModal();
   }
 
@@ -1507,6 +1536,7 @@
     formLink.value = novel.link || '';
     formGenre.value = novel.genre || '';
     formTags.value = Array.isArray(novel.tags) ? novel.tags.join(', ') : (novel.tags || '');
+    updateTagsPreview();
     formNotes.value = novel.notes || '';
     autoGrowNotes(formNotes);
 
@@ -3012,6 +3042,67 @@
         genrePills.querySelectorAll('.pill-btn').forEach(p => {
           p.classList.toggle('active', p.dataset.genre.toLowerCase() === val);
         });
+      });
+    }
+
+    // Tags preview sync & remove
+    if (formTags) {
+      formTags.addEventListener('input', updateTagsPreview);
+    }
+    const tagsContainer = document.getElementById('tags-preview-container');
+    if (tagsContainer) {
+      tagsContainer.addEventListener('click', (e) => {
+        const btn = e.target.closest('.tag-chip-remove');
+        if (!btn) return;
+        const idx = parseInt(btn.dataset.index, 10);
+        const raw = formTags.value || '';
+        const tags = raw.split(',').map(t => t.trim()).filter(Boolean);
+        if (idx >= 0 && idx < tags.length) {
+          tags.splice(idx, 1);
+          formTags.value = tags.join(', ');
+          updateTagsPreview();
+          formTags.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      });
+    }
+
+    // Enter key navigation on single-line form inputs (does not submit form)
+    if (novelForm) {
+      novelForm.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          const target = e.target;
+          if (target && target.tagName === 'INPUT' && target.type !== 'submit' && target.type !== 'button') {
+            e.preventDefault();
+            const formInputs = [
+              'form-title',
+              'form-author',
+              'form-chapters-read',
+              'form-chapters-total',
+              'form-source',
+              'form-link',
+              'form-genre',
+              'form-tags',
+              'form-notes'
+            ].map(id => document.getElementById(id)).filter(Boolean);
+
+            const currentIndex = formInputs.indexOf(target);
+            if (currentIndex >= 0 && currentIndex < formInputs.length - 1) {
+              formInputs[currentIndex + 1].focus();
+            }
+          }
+        }
+      });
+    }
+
+    // Tap outside input in form-scroll-body dismisses keyboard
+    const formScrollBody = document.querySelector('.form-scroll-body');
+    if (formScrollBody) {
+      formScrollBody.addEventListener('click', (e) => {
+        if (!e.target.closest('input, textarea, select, button, a, [role="button"], [role="radio"], .pill-btn, .status-pill-btn, .tag-preview-chip')) {
+          if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+            document.activeElement.blur();
+          }
+        }
       });
     }
 

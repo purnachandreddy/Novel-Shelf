@@ -845,6 +845,55 @@ async function runTests() {
     assert.strictEqual(completedPlusBtn, null, 'Completed novel must NOT have +1 Ch button');
   });
 
+  // A25: Form Enter key does not submit, tag preview chips render and delete, genre pills sync
+  await test('A25', 'Form input navigation, live tag preview chips, and genre chip sync', async () => {
+    const { window } = createDom();
+    const doc = window.document;
+
+    doc.getElementById('btn-add-novel-top').click();
+    const novelForm = doc.getElementById('novel-form');
+    const formTitle = doc.getElementById('form-title');
+    const formTags = doc.getElementById('form-tags');
+    const tagsContainer = doc.getElementById('tags-preview-container');
+
+    // 1. Enter key on title does not submit form
+    formTitle.value = 'Test Novel';
+    let submitFired = false;
+    novelForm.addEventListener('submit', () => { submitFired = true; }, { once: true });
+    
+    const enterEvt = new window.KeyboardEvent('keydown', { key: 'Enter', cancelable: true, bubbles: true });
+    formTitle.dispatchEvent(enterEvt);
+    assert.strictEqual(enterEvt.defaultPrevented, true, 'Enter key on single-line input must prevent form submit');
+    assert.strictEqual(submitFired, false, 'Form submit must not fire on Enter');
+
+    // 2. Tags preview chips
+    formTags.value = 'fantasy, litrpg, slow burn';
+    formTags.dispatchEvent(new window.Event('input', { bubbles: true }));
+    
+    assert.strictEqual(tagsContainer.style.display, 'flex');
+    const chips = tagsContainer.querySelectorAll('.tag-preview-chip');
+    assert.strictEqual(chips.length, 3, 'Should render 3 tag chips');
+    assert.strictEqual(chips[0].querySelector('.tag-chip-text').textContent, 'fantasy');
+    assert.strictEqual(chips[1].querySelector('.tag-chip-text').textContent, 'litrpg');
+    assert.strictEqual(chips[2].querySelector('.tag-chip-text').textContent, 'slow burn');
+
+    // 3. Remove second tag chip ('litrpg')
+    const removeBtn = chips[1].querySelector('.tag-chip-remove');
+    removeBtn.click();
+    assert.strictEqual(formTags.value, 'fantasy, slow burn');
+    const updatedChips = tagsContainer.querySelectorAll('.tag-preview-chip');
+    assert.strictEqual(updatedChips.length, 2, 'Should have 2 tag chips left');
+    assert.strictEqual(updatedChips[1].querySelector('.tag-chip-text').textContent, 'slow burn');
+
+    // 4. Genre chip sync
+    const formGenre = doc.getElementById('form-genre');
+    const sciFiPill = doc.querySelector('.pill-btn[data-genre="Sci-Fi"]');
+    assert.ok(sciFiPill, 'Sci-Fi genre pill should exist');
+    sciFiPill.click();
+    assert.strictEqual(formGenre.value, 'Sci-Fi');
+    assert.strictEqual(sciFiPill.classList.contains('active'), true);
+  });
+
   console.log('\n--- Test Summary ---');
   const passed = results.filter(r => r.status === 'PASS').length;
   const failed = results.filter(r => r.status === 'FAIL').length;

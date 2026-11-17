@@ -2841,8 +2841,8 @@ textarea {
 .quick-pills {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
-  margin-top: 6px;
+  gap: 6px;
+  margin-top: 8px;
 }
 
 .pill-btn {
@@ -2851,12 +2851,15 @@ textarea {
   border: 1px solid var(--border-subtle);
   border-radius: var(--r-full);
   color: var(--text-muted);
-  font-size: .73rem;
+  font-size: .8rem;
+  font-weight: 600;
   font-family: inherit;
-  padding: 4px 10px;
+  padding: 6px 12px;
   cursor: pointer;
   transition: all var(--t-fast) var(--ease-out);
   touch-action: manipulation;
+  display: inline-flex;
+  align-items: center;
 }
 
 .pill-btn::before {
@@ -2871,11 +2874,73 @@ textarea {
   height: 100%;
 }
 
-.pill-btn:hover,
+.pill-btn:hover {
+  color: var(--text-secondary);
+  background: var(--glass-fill);
+}
+
 .pill-btn.active {
-  background: var(--amber-dim);
   color: var(--amber-light);
+  background: var(--amber-dim);
   border-color: rgba(245, 158, 11, .4);
+  box-shadow: var(--contour-edge);
+}
+
+.pill-btn.active::after {
+  content: ' ✓';
+  font-weight: 700;
+  margin-left: 4px;
+  font-size: .75rem;
+}
+
+/* Tags Preview Chips */
+.tags-preview-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.tag-preview-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--glass-fill);
+  border: 1px solid var(--glass-edge);
+  border-radius: var(--r-full);
+  padding: 4px 10px;
+  font-size: .78rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  box-shadow: var(--contour-edge);
+  animation: fadeIn 150ms var(--ease-out);
+}
+
+.tag-chip-text {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tag-chip-remove {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: .75rem;
+  line-height: 1;
+  padding: 2px 4px;
+  margin: -2px -2px -2px 0;
+  border-radius: var(--r-full);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--t-fast);
+}
+
+.tag-chip-remove:hover {
+  color: var(--color-dropped);
 }
 
 /* Reading Status Quick Pills */

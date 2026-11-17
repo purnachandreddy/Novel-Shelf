@@ -553,12 +553,14 @@
           <div class="form-row">
             <div class="form-group flex-1">
               <label for="form-title" class="form-label required">Title</label>
-              <input type="text" id="form-title" placeholder="e.g. Lord of the Mysteries" required>
+              <input type="text" id="form-title" placeholder="e.g. Lord of the Mysteries" required
+                enterkeyhint="next" autocapitalize="words" autocomplete="off">
               <div id="form-title-error" class="form-inline-error" role="alert" style="display:none;">Title is required</div>
             </div>
             <div class="form-group flex-1">
               <label for="form-author" class="form-label">Author</label>
-              <input type="text" id="form-author" placeholder="e.g. Cuttlefish That Loves Diving">
+              <input type="text" id="form-author" placeholder="e.g. Cuttlefish That Loves Diving"
+                enterkeyhint="next" autocapitalize="words" autocomplete="off">
             </div>
           </div>
 
@@ -588,13 +590,15 @@
                 <div class="chapter-input-wrap">
                   <label for="form-chapters-read" class="sub-label">Read</label>
                   <div class="stepper-input">
-                    <input type="number" id="form-chapters-read" min="0" value="0" placeholder="0">
+                    <input type="number" id="form-chapters-read" min="0" value="0" placeholder="0"
+                      inputmode="numeric" enterkeyhint="next">
                   </div>
                 </div>
                 <span class="chapter-divider">/</span>
                 <div class="chapter-input-wrap">
                   <label for="form-chapters-total" class="sub-label">Total</label>
-                  <input type="number" id="form-chapters-total" min="0" placeholder="Total (optional)">
+                  <input type="number" id="form-chapters-total" min="0" placeholder="Total (optional)"
+                    inputmode="numeric" enterkeyhint="next">
                 </div>
               </div>
             </div>
@@ -663,19 +667,21 @@
             <div class="form-group flex-1">
               <label for="form-source" class="form-label">Source</label>
               <input type="text" id="form-source" placeholder="e.g. Royal Road, Webnovel, Novel buddy"
-                autocomplete="off">
+                enterkeyhint="next" autocapitalize="none" autocomplete="off">
             </div>
 
             <div class="form-group flex-1">
               <label for="form-link" class="form-label">Link</label>
-              <input type="url" id="form-link" placeholder="https://...">
+              <input type="url" id="form-link" placeholder="https://..."
+                enterkeyhint="next" autocapitalize="none" autocomplete="off">
             </div>
           </div>
 
           <!-- Genre & Quick Pills -->
           <div class="form-group">
             <label for="form-genre" class="form-label">Genre</label>
-            <input type="text" id="form-genre" placeholder="e.g. Fantasy, LitRPG, Xianxia">
+            <input type="text" id="form-genre" placeholder="e.g. Fantasy, LitRPG, Xianxia"
+              enterkeyhint="next" autocapitalize="words" autocomplete="off">
             <div class="quick-pills" id="genre-quick-pills">
               <button type="button" class="pill-btn" data-genre="Fantasy">Fantasy</button>
               <button type="button" class="pill-btn" data-genre="Sci-Fi">Sci-Fi</button>
@@ -691,7 +697,9 @@
           <!-- Tags -->
           <div class="form-group">
             <label for="form-tags" class="form-label">Tags (comma separated)</label>
-            <input type="text" id="form-tags" placeholder="e.g. cultivation, transmigration, slow burn">
+            <input type="text" id="form-tags" placeholder="e.g. cultivation, transmigration, slow burn"
+              enterkeyhint="next" autocapitalize="none" autocomplete="off">
+            <div id="tags-preview-container" class="tags-preview-container" aria-label="Tags preview" style="display:none;"></div>
           </div>
 
           <!-- Notes -->
