@@ -500,9 +500,10 @@ async function runTests() {
     const calWrap = doc.querySelector('.glass-calendar-wrap');
     assert.ok(calWrap, 'Calendar container should exist in sheet');
 
-    // Pick 'Today' chip
-    const todayChip = calWrap.querySelector('.calendar-chip');
-    todayChip.click();
+    // Pick a day cell from current month
+    const dayBtn = calWrap.querySelector('.calendar-day:not(.outside-month)');
+    assert.ok(dayBtn, 'Day cell should exist');
+    dayBtn.click();
 
     // Find selected day and confirm Set button
     const setBtn = calWrap.querySelector('.btn-set');
@@ -623,30 +624,25 @@ async function runTests() {
     const jumpGrid = doc.querySelector('.calendar-jump-grid');
     jumpGrid.querySelector('.calendar-month-card[data-month="10"]').click();
 
-    // Pick 2026-10-10 (earlier than started date 2026-10-15)
+    // Verify 2026-10-10 (earlier than started date 2026-10-15) is disabled
     const day10 = doc.querySelector('.calendar-day[data-date="2026-10-10"]');
-    day10.click();
+    assert.ok(day10, 'Day 10 should exist');
+    assert.ok(day10.classList.contains('disabled'), 'Day 10 should be disabled since it is earlier than started date');
+    assert.strictEqual(day10.getAttribute('aria-disabled'), 'true');
 
-    const hint = doc.querySelector('.calendar-validation-hint');
-    assert.ok(hint, 'Validation hint should be displayed when finished < started');
-    assert.ok(hint.textContent.includes('Finished date cannot be before Started date'));
-    const setBtn = doc.querySelector('.calendar-action-btn.btn-set');
-    assert.strictEqual(setBtn.disabled, true, 'Set button should be disabled on validation error');
-
-    // Now click 'Same as started' chip (re-queried from newly rendered DOM)
+    // Click 'Same as started' chip
     const sameChipNow = Array.from(doc.querySelectorAll('.calendar-chip')).find(c => c.textContent.includes('Same as started'));
-    assert.ok(sameChipNow, 'Same as started chip should be present in re-rendered DOM');
+    assert.ok(sameChipNow, 'Same as started chip should be present in DOM');
     sameChipNow.click();
 
-    const hintAfterSame = doc.querySelector('.calendar-validation-hint');
-    assert.strictEqual(hintAfterSame, null, 'Validation hint should disappear for same date');
     const setBtnAfterSame = doc.querySelector('.calendar-action-btn.btn-set');
-    assert.strictEqual(setBtnAfterSame.disabled, false, 'Set button should be enabled');
+    assert.strictEqual(setBtnAfterSame.disabled, false, 'Set button should be enabled after picking same as started');
 
-    // Pick 2026-10-20 (after started date)
+    // Pick 2026-10-20 (after started date) — should NOT be disabled
     const day20 = doc.querySelector('.calendar-day[data-date="2026-10-20"]');
+    assert.ok(day20, 'Day 20 should exist');
+    assert.strictEqual(day20.classList.contains('disabled'), false, 'Day 20 should be enabled');
     day20.click();
-    assert.strictEqual(doc.querySelector('.calendar-validation-hint'), null);
     const setBtnFinal = doc.querySelector('.calendar-action-btn.btn-set');
     assert.strictEqual(setBtnFinal.disabled, false);
 
@@ -719,6 +715,50 @@ async function runTests() {
     notesArea.value = 'A long note\nwith multiple\nlines of text\nthat should trigger\nauto-growing.';
     notesArea.dispatchEvent(new window.Event('input', { bubbles: true }));
     assert.ok(notesArea.style.height, 'Notes textarea height should be set on input');
+  });
+
+  // A22: Date picker — Future dates allowed, out-of-order resilience
+  await test('A22', 'Date picker allows choosing future dates and handles existing out-of-order dates safely', async () => {
+    const { window } = createDom();
+    const doc = window.document;
+
+    doc.getElementById('btn-add-novel-top').click();
+    const startedInput = doc.getElementById('form-started');
+    const startedBtn = doc.querySelector('.custom-date-btn[data-target="form-started"]');
+
+    // Future year selection (e.g. 2030-05-15)
+    startedBtn.click();
+    const monthYearBtn = doc.querySelector('.calendar-month-year-btn');
+    monthYearBtn.click();
+    const curYear = new Date().getFullYear();
+    const nextBtn = doc.querySelector('.calendar-nav-btn[aria-label="Next year"]');
+    for (let i = 0; i < (2030 - curYear); i++) nextBtn.click();
+    doc.querySelector('.calendar-jump-grid .calendar-month-card[data-month="5"]').click();
+
+    const futureDay = doc.querySelector('.calendar-day[data-date="2030-05-15"]');
+    assert.ok(futureDay, '2030-05-15 should exist');
+    assert.strictEqual(futureDay.classList.contains('disabled'), false, 'Future date should NOT be disabled by default');
+    futureDay.click();
+
+    const setBtn = doc.querySelector('.calendar-action-btn.btn-set');
+    assert.strictEqual(setBtn.disabled, false, 'Set button should be enabled for future date');
+    setBtn.click();
+    await new Promise(r => setTimeout(r, 450));
+    assert.strictEqual(startedInput.value, '2030-05-15');
+
+    // Out-of-order pre-existing values: Started 2030-05-15, set Finished to 2029-01-01
+    const finishedInput = doc.getElementById('form-finished');
+    const finishedBtn = doc.querySelector('.custom-date-btn[data-target="form-finished"]');
+    finishedInput.value = '2029-01-01';
+    window.updateCustomDate(finishedInput);
+
+    // Open Finished picker with out-of-order date: should not throw, should show Set enabled
+    finishedBtn.click();
+    assert.ok(window.BottomSheet.isOpen(), 'Picker should open safely even with out-of-order dates');
+    const setBtn2 = doc.querySelector('.calendar-action-btn.btn-set');
+    assert.strictEqual(setBtn2.disabled, false, 'Set button should remain enabled');
+    window.BottomSheet.close();
+    await new Promise(r => setTimeout(r, 450));
   });
 
   console.log('\n--- Test Summary ---');

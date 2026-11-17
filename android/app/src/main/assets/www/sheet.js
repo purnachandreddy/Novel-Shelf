@@ -536,48 +536,31 @@
           }
         }
 
-        // Quick helper chips (only in normal calendar day view)
-        if (!isJumpMode) {
-          const chipsRow = document.createElement('div');
-          chipsRow.className = 'calendar-quick-chips';
+        // Quick helper chip: "Same as started" (Finished date picker only, when started is set)
+        if (!isJumpMode && inputEl.id === 'form-finished') {
+          const startedEl = document.getElementById('form-started');
+          if (startedEl && startedEl.value) {
+            const chipsRow = document.createElement('div');
+            chipsRow.className = 'calendar-quick-chips';
 
-          const todayChip = document.createElement('button');
-          todayChip.type = 'button';
-          todayChip.className = 'calendar-chip';
-          todayChip.textContent = 'Today';
-          todayChip.dataset.squish = 'true';
-          todayChip.addEventListener('click', () => {
-            pendingDate = todayYMD;
-            viewYear = todayParts.year;
-            viewMonth = todayParts.month;
-            if (window.Motion && typeof window.Motion.haptic === 'function') window.Motion.haptic('tick');
-            renderCalendar();
-          });
-          chipsRow.appendChild(todayChip);
-
-          if (inputEl.id === 'form-finished') {
-            const startedEl = document.getElementById('form-started');
-            if (startedEl && startedEl.value) {
-              const sameChip = document.createElement('button');
-              sameChip.type = 'button';
-              sameChip.className = 'calendar-chip';
-              sameChip.textContent = 'Same as started';
-              sameChip.dataset.squish = 'true';
-              sameChip.addEventListener('click', () => {
-                pendingDate = startedEl.value;
-                const sp = parseYMD(startedEl.value);
-                if (sp) {
-                  viewYear = sp.year;
-                  viewMonth = sp.month;
-                }
-                if (window.Motion && typeof window.Motion.haptic === 'function') window.Motion.haptic('tick');
-                renderCalendar();
-              });
-              chipsRow.appendChild(sameChip);
-            }
+            const sameChip = document.createElement('button');
+            sameChip.type = 'button';
+            sameChip.className = 'calendar-chip';
+            sameChip.textContent = 'Same as started';
+            sameChip.dataset.squish = 'true';
+            sameChip.addEventListener('click', () => {
+              pendingDate = startedEl.value;
+              const sp = parseYMD(startedEl.value);
+              if (sp) {
+                viewYear = sp.year;
+                viewMonth = sp.month;
+              }
+              if (window.Motion && typeof window.Motion.haptic === 'function') window.Motion.haptic('tick');
+              renderCalendar();
+            });
+            chipsRow.appendChild(sameChip);
+            calWrap.appendChild(chipsRow);
           }
-
-          calWrap.appendChild(chipsRow);
         }
 
         // Header Navigation Row
@@ -721,8 +704,25 @@
               dayBtn.setAttribute('aria-selected', 'false');
             }
 
-            // Max date: today (cannot pick future dates)
-            if (dateStr > todayYMD) {
+            // Ordering rule (Started <= Finished)
+            let isDayDisabled = false;
+            if (inputEl.id === 'form-started') {
+              const finishedEl = document.getElementById('form-finished');
+              if (finishedEl && finishedEl.value && dateStr > finishedEl.value) {
+                if (dateStr !== currentVal) {
+                  isDayDisabled = true;
+                }
+              }
+            } else if (inputEl.id === 'form-finished') {
+              const startedEl = document.getElementById('form-started');
+              if (startedEl && startedEl.value && dateStr < startedEl.value) {
+                if (dateStr !== currentVal) {
+                  isDayDisabled = true;
+                }
+              }
+            }
+
+            if (isDayDisabled) {
               dayBtn.classList.add('disabled');
               dayBtn.setAttribute('aria-disabled', 'true');
             } else {
@@ -800,11 +800,11 @@
         setBtn.type = 'button';
         setBtn.className = 'calendar-action-btn btn-set primary';
         setBtn.textContent = 'Set';
-        if (validationError || !pendingDate) {
+        if (!pendingDate) {
           setBtn.disabled = true;
         }
         setBtn.addEventListener('click', () => {
-          if (pendingDate && !validationError) {
+          if (pendingDate) {
             inputEl.value = pendingDate;
             inputEl.dispatchEvent(new Event('change', { bubbles: true }));
             inputEl.dispatchEvent(new Event('input', { bubbles: true }));

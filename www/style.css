@@ -3682,7 +3682,8 @@ textarea {
 }
 
 .calendar-day {
-  min-height: 44px;
+  min-height: 38px;
+  height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
