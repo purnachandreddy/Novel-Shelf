@@ -150,18 +150,21 @@ class MainActivity : AppCompatActivity() {
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
             val ime  = insets.getInsets(WindowInsetsCompat.Type.ime())
             val density = resources.displayMetrics.density
+            val isImeVisible = ime.bottom > 0
+            val imeBottomPadding = if (isImeVisible) ime.bottom else 0
+            binding.root.setPadding(0, 0, 0, imeBottomPadding)
+
             val topPx    = (bars.top / density).toInt()
-            val bottomPx = (bars.bottom / density).toInt()
+            val bottomPx = if (isImeVisible) 0 else (bars.bottom / density).toInt()
             val leftPx   = (bars.left / density).toInt()
             val rightPx  = (bars.right / density).toInt()
-            val imePx    = (ime.bottom / density).toInt()
 
             val js = """
                 document.documentElement.style.setProperty('--inset-top', '${topPx}px');
                 document.documentElement.style.setProperty('--inset-bottom', '${bottomPx}px');
                 document.documentElement.style.setProperty('--inset-left', '${leftPx}px');
                 document.documentElement.style.setProperty('--inset-right', '${rightPx}px');
-                document.documentElement.style.setProperty('--ime-height', '${imePx}px');
+                document.documentElement.style.setProperty('--ime-height', '0px');
             """.trimIndent().replace("\n", " ")
 
             currentInsetsJs = js
@@ -228,12 +231,14 @@ class MainActivity : AppCompatActivity() {
                         val bars = rootInsets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
                         val ime  = rootInsets.getInsets(WindowInsetsCompat.Type.ime())
                         val density = resources.displayMetrics.density
+                        val isImeVisible = ime.bottom > 0
+                        val imeBottomPadding = if (isImeVisible) ime.bottom else 0
+                        binding.root.setPadding(0, 0, 0, imeBottomPadding)
                         val topPx    = (bars.top / density).toInt()
-                        val bottomPx = (bars.bottom / density).toInt()
+                        val bottomPx = if (isImeVisible) 0 else (bars.bottom / density).toInt()
                         val leftPx   = (bars.left / density).toInt()
                         val rightPx  = (bars.right / density).toInt()
-                        val imePx    = (ime.bottom / density).toInt()
-                        "document.documentElement.style.setProperty('--inset-top', '${topPx}px'); document.documentElement.style.setProperty('--inset-bottom', '${bottomPx}px'); document.documentElement.style.setProperty('--inset-left', '${leftPx}px'); document.documentElement.style.setProperty('--inset-right', '${rightPx}px'); document.documentElement.style.setProperty('--ime-height', '${imePx}px');"
+                        "document.documentElement.style.setProperty('--inset-top', '${topPx}px'); document.documentElement.style.setProperty('--inset-bottom', '${bottomPx}px'); document.documentElement.style.setProperty('--inset-left', '${leftPx}px'); document.documentElement.style.setProperty('--inset-right', '${rightPx}px'); document.documentElement.style.setProperty('--ime-height', '0px');"
                     } else null
                 }
                 js?.let { view?.evaluateJavascript(it, null) }

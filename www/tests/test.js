@@ -696,6 +696,29 @@ async function runTests() {
     assert.strictEqual(titleInput.classList.contains('input-error'), false);
   });
 
+  // A21: Form layout — action bar in normal flow, scroll body separation, auto-grow notes
+  await test('A21', 'Form layout places actions in normal flow and auto-grows notes textarea', async () => {
+    const { window } = createDom();
+    const doc = window.document;
+
+    doc.getElementById('btn-add-novel-top').click();
+
+    const form = doc.getElementById('novel-form');
+    const scrollBody = form.querySelector('.form-scroll-body');
+    const actionsBottom = form.querySelector('.form-actions-bottom');
+
+    assert.ok(scrollBody, 'Form must contain a .form-scroll-body container');
+    assert.ok(actionsBottom, 'Form must contain a .form-actions-bottom container');
+    assert.strictEqual(scrollBody.nextElementSibling, actionsBottom, 'Actions bar must be in normal flow directly following the scroll body');
+
+    // Verify notes textarea auto-grow
+    const notesArea = doc.getElementById('form-notes');
+    assert.ok(notesArea, 'Notes textarea should exist');
+    notesArea.value = 'A long note\nwith multiple\nlines of text\nthat should trigger\nauto-growing.';
+    notesArea.dispatchEvent(new window.Event('input', { bubbles: true }));
+    assert.ok(notesArea.style.height, 'Notes textarea height should be set on input');
+  });
+
   console.log('\n--- Test Summary ---');
   const passed = results.filter(r => r.status === 'PASS').length;
   const failed = results.filter(r => r.status === 'FAIL').length;

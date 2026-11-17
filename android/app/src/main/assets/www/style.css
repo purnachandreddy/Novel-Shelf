@@ -2308,17 +2308,55 @@ select option {
 }
 
 /* Add/Edit Novel Full-Page Form */
+.form-page-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  background: var(--surface-base) !important;
+  width: 100%;
+}
+
+.form-topbar {
+  flex: none;
+  background: var(--surface-base) !important;
+  border-bottom: 1px solid var(--border-subtle);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  z-index: var(--z-topbar);
+}
+
+.fullpage-form {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  gap: 0;
+}
+
+.form-scroll-body.form-page-container {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 16px calc(20px + var(--inset-right)) 16px calc(20px + var(--inset-left));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-form-gap, 20px);
+  max-width: 720px;
+  width: 100%;
+  margin: 0 auto;
+}
+
 .form-page-container {
   max-width: 720px;
   width: 100%;
   margin: 0 auto;
-  padding: 16px calc(20px + var(--inset-right)) calc(40px + var(--inset-bottom) + var(--ime-height)) calc(20px + var(--inset-left));
-}
-
-.fullpage-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-form-gap, 20px);
+  padding: 16px calc(20px + var(--inset-right)) 16px calc(20px + var(--inset-left));
 }
 
 .form-scroll-body {
@@ -2477,24 +2515,20 @@ input.input-error {
   margin-top: 4px;
 }
 
-/* Sticky Form Bottom Action Bar */
+/* Form Bottom Action Bar (Normal Flow, Flush at Bottom) */
 .form-actions-bottom {
-  position: sticky;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 20;
+  flex: none;
+  position: static;
+  margin: 0;
   display: flex;
   gap: 12px;
-  margin-top: 24px;
-  margin-left: -20px;
-  margin-right: -20px;
-  padding: 12px calc(20px + var(--inset-right)) calc(14px + var(--inset-bottom) + var(--ime-height)) calc(20px + var(--inset-left));
+  padding: 12px calc(20px + var(--inset-right)) calc(12px + var(--inset-bottom)) calc(20px + var(--inset-left));
   background: var(--frost-sheen), var(--frost-tint);
   backdrop-filter: blur(var(--blur-md)) saturate(160%);
   -webkit-backdrop-filter: blur(var(--blur-md)) saturate(160%);
   border-top: 1px solid var(--border-medium);
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
+  z-index: 20;
 }
 
 input::placeholder,
@@ -2502,9 +2536,13 @@ textarea::placeholder {
   color: var(--text-muted);
 }
 
+#form-notes,
 textarea {
-  resize: vertical;
-  min-height: 80px;
+  resize: none;
+  min-height: 96px;
+  max-height: 40vh;
+  overflow-y: auto;
+  line-height: 1.45;
 }
 
 /* Chapters row */
@@ -3029,7 +3067,7 @@ textarea {
 
 .details-page-body {
   flex: 1;
-  padding: 18px calc(16px + var(--inset-right)) var(--nav-clearance) calc(16px + var(--inset-left));
+  padding: 18px calc(16px + var(--inset-right)) calc(24px + var(--inset-bottom)) calc(16px + var(--inset-left));
   max-width: 760px;
   margin: 0 auto;
   width: 100%;

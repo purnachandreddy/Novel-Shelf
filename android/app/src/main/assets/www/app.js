@@ -1416,6 +1416,15 @@
     }
   }
 
+  function autoGrowNotes(el) {
+    if (!el) return;
+    el.style.height = 'auto';
+    const minH = 96;
+    const maxH = Math.min((window.innerHeight || 800) * 0.4, 300);
+    const newH = Math.max(minH, Math.min(el.scrollHeight || minH, maxH));
+    el.style.height = `${newH}px`;
+  }
+
   function openAddModal() {
     if (window.Motion) Motion.haptic('tick');
     formOpenedFromDetails = false; // A1 — opened from shelf
@@ -1424,6 +1433,7 @@
     modalFormTitle.textContent = 'Add novel';
     setRating(0);
     resetCoverPreview();
+    autoGrowNotes(formNotes);
     setStatusPill('Reading');
     formChaptersRead.value = '0';
     formChaptersTotal.value = '';
@@ -1470,6 +1480,7 @@
     formGenre.value = novel.genre || '';
     formTags.value = Array.isArray(novel.tags) ? novel.tags.join(', ') : (novel.tags || '');
     formNotes.value = novel.notes || '';
+    autoGrowNotes(formNotes);
 
     // A13 — sync genre quick pills with formGenre
     const genrePills = document.getElementById('genre-quick-pills');
@@ -2664,6 +2675,34 @@
           formTitle.classList.remove('input-error', 'input-shake');
           const titleErrorEl = document.getElementById('form-title-error');
           if (titleErrorEl) titleErrorEl.style.display = 'none';
+        }
+      });
+    }
+
+    if (formNotes) {
+      formNotes.addEventListener('input', () => autoGrowNotes(formNotes));
+    }
+
+    if (novelForm) {
+      novelForm.addEventListener('focusin', (e) => {
+        const target = e.target;
+        if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) {
+          setTimeout(() => {
+            if (typeof target.scrollIntoView === 'function') {
+              target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            }
+          }, 60);
+        }
+      });
+    }
+
+    if (typeof window !== 'undefined' && window.visualViewport) {
+      window.visualViewport.addEventListener('resize', () => {
+        if (currentScreen === 'form' && document.activeElement &&
+            (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+          if (typeof document.activeElement.scrollIntoView === 'function') {
+            document.activeElement.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          }
         }
       });
     }
