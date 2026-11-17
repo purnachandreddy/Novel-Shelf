@@ -324,8 +324,9 @@
     }
   }
   function canHandleBack() {
+    const isSheetOpen = !!(window.BottomSheet && window.BottomSheet.isOpen());
     const isConfirmOpen = !!(confirmDialog && confirmDialog.style.display === 'flex');
-    return isConfirmOpen || currentScreen !== 'shelf';
+    return isSheetOpen || isConfirmOpen || currentScreen !== 'shelf';
   }
 
   function updateNativeBackState() {
@@ -333,6 +334,8 @@
       window.Android.setCanGoBack(canHandleBack());
     }
   }
+  window.updateNativeBackState = updateNativeBackState;
+  window.isRootTab = isRootTab;
 
   // --- Custom Confirm Dialog (2-button: yes / no) ---
   // A9 — guard against two dialogs open at once; expose cancel handle for popstate
@@ -2208,6 +2211,9 @@
       genreFilter.value = 'ALL';
       activeGenreFilter = 'ALL';
     }
+    if (window.updateCustomSelect) {
+      window.updateCustomSelect(genreFilter);
+    }
   }
 
   function applyViewMode(mode, doRender = true) {
@@ -2715,6 +2721,10 @@
       activeSort = 'updated-desc';
       if (sortFilter) sortFilter.value = 'updated-desc';
       if (genreFilter) genreFilter.value = 'ALL';
+      if (window.updateCustomSelect) {
+        window.updateCustomSelect(sortFilter);
+        window.updateCustomSelect(genreFilter);
+      }
       statusTabs.querySelectorAll('.status-tab').forEach(t =>
         t.classList.toggle('active', t.dataset.status === 'ALL')
       );
@@ -2733,6 +2743,12 @@
 
     if (genreFilter) genreFilter.addEventListener('change', (e) => { activeGenreFilter = e.target.value; renderLibrary(); });
     if (sortFilter) sortFilter.addEventListener('change', (e) => { activeSort = e.target.value; renderLibrary(); });
+
+    // Initialize custom glass selects
+    if (window.initCustomSelect) {
+      if (sortFilter) window.initCustomSelect(sortFilter, { title: 'Sort novels' });
+      if (genreFilter) window.initCustomSelect(genreFilter, { title: 'Filter by genre' });
+    }
 
     // View toggles
     viewGridBtn.addEventListener('click', () => applyViewMode('grid'));
@@ -2896,11 +2912,18 @@
     });
 
     // --- Centralized Back Sequence ---
+    // 0. If bottom sheet open: close it
     // 1. If confirm dialog open: cancel it
     // 2. Else if on sub-screen (details or form): pop back to previous screen
     // 3. Else if on any root tab other than Shelf (stats, backup): go to Shelf
     // 4. Else if on Shelf: exit app (return false to native Android dispatcher)
     function handleAppBack() {
+      if (window.BottomSheet && window.BottomSheet.isOpen()) {
+        window.BottomSheet.close();
+        updateNativeBackState();
+        return true;
+      }
+
       if (confirmDialog && confirmDialog.style.display === 'flex') {
         if (typeof activeConfirmCancel === 'function') {
           activeConfirmCancel();
@@ -2929,6 +2952,13 @@
 
     // History popstate (Android back button & browser back navigation)
     window.addEventListener('popstate', (e) => {
+      // If bottom sheet open: close it
+      if (window.BottomSheet && window.BottomSheet.isOpen()) {
+        window.BottomSheet.close();
+        updateNativeBackState();
+        return;
+      }
+
       // If confirm dialog open: cancel it
       if (confirmDialog && confirmDialog.style.display === 'flex') {
         if (typeof activeConfirmCancel === 'function') {

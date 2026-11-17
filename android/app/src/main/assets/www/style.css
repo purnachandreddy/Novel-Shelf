@@ -145,7 +145,18 @@
   --z-header: 40;
   --z-topbar: 45;
   --z-modal: 100;
+  --z-sheet: 150;
   --z-toast: 200;
+
+  /* Bottom Sheet Tokens */
+  --sheet-radius: var(--r-xl);
+  --sheet-handle-width: 36px;
+  --sheet-handle-height: 4px;
+  --sheet-row-height: 52px;
+  --sheet-max-height: 70vh;
+
+  /* Form & Native Controls Accent */
+  accent-color: var(--amber);
 
   /* System Insets & Keyboard (IME) Bridged from Android */
   --inset-top: env(safe-area-inset-top, 0px);
@@ -627,6 +638,76 @@ body.ambient-paused::after {
   border-color: var(--amber);
   box-shadow: 0 0 0 3px var(--amber-dim);
   color: var(--text-primary);
+}
+
+/* Hidden native select for accessible / headless backing */
+.sr-only-select {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Custom Glass Select Pill Button */
+.custom-select-btn {
+  flex: 1;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px 8px 14px;
+  background: var(--glass-fill);
+  border: 1px solid var(--glass-edge);
+  border-radius: var(--r-full);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: .78rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: var(--contour-edge);
+  transition: border-color var(--t-fast), background var(--t-fast), color var(--t-fast);
+  touch-action: manipulation;
+}
+
+.custom-select-btn:hover {
+  background: var(--glass-fill-strong);
+  color: var(--text-primary);
+  border-color: var(--border-medium);
+}
+
+.custom-select-btn:focus-visible,
+.custom-select-btn[aria-expanded="true"] {
+  outline: none;
+  border-color: var(--amber);
+  box-shadow: 0 0 0 3px var(--amber-dim), var(--contour-edge);
+  color: var(--text-primary);
+  background: var(--glass-fill-strong);
+}
+
+.custom-select-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.custom-select-chevron {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform var(--t-fast) ease, color var(--t-fast) ease;
+}
+
+.custom-select-btn[aria-expanded="true"] .custom-select-chevron {
+  transform: rotate(180deg);
+  color: var(--amber);
 }
 
 select {
@@ -3100,6 +3181,186 @@ textarea {
 .edge-blur-top,
 .edge-blur-bottom {
   display: none !important;
+}
+
+/* ---- Liquid-Glass Bottom Sheet Component ---- */
+.glass-sheet-container {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-sheet);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 260ms var(--ease-sheet), visibility 260ms;
+}
+
+.glass-sheet-container.open {
+  pointer-events: auto;
+  opacity: 1;
+  visibility: visible;
+}
+
+.glass-sheet-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  cursor: pointer;
+  /* NO backdrop-filter on scrim per 120Hz performance budget */
+}
+
+.glass-sheet {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  max-height: var(--sheet-max-height);
+  background: var(--frost-sheen), var(--frost-tint);
+  backdrop-filter: blur(var(--blur-lg)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--blur-lg)) saturate(160%);
+  border-top-left-radius: var(--sheet-radius);
+  border-top-right-radius: var(--sheet-radius);
+  border-top: 1px solid var(--border-medium);
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.6), var(--contour-edge);
+  display: flex;
+  flex-direction: column;
+  padding-bottom: calc(12px + var(--inset-bottom));
+  transform: translateY(100%);
+  transition: transform 260ms var(--ease-sheet);
+  will-change: transform;
+}
+
+.glass-sheet-container.open .glass-sheet {
+  transform: translateY(0);
+}
+
+.glass-sheet-handle-area {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 10px 0 6px 0;
+  cursor: grab;
+  touch-action: none;
+}
+
+.glass-sheet-handle-area:active {
+  cursor: grabbing;
+}
+
+.glass-sheet-handle {
+  width: var(--sheet-handle-width);
+  height: var(--sheet-handle-height);
+  border-radius: var(--r-full);
+  background: rgba(255, 255, 255, 0.28);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.glass-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 18px 12px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-sheet-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.glass-sheet-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+
+.glass-sheet-close-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
+}
+
+.glass-sheet-content {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px 10px;
+  scrollbar-width: thin;
+}
+
+/* Sheet Options List */
+.sheet-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sheet-option-row {
+  min-height: var(--sheet-row-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border-radius: var(--r-md);
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: .95rem;
+  font-weight: 600;
+  transition: background var(--t-fast), color var(--t-fast);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.sheet-option-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.sheet-option-row:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--amber);
+}
+
+.sheet-option-row.selected {
+  background: var(--amber-dim);
+  color: var(--amber);
+  font-weight: 700;
+}
+
+.sheet-option-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  color: var(--amber);
+}
+
+/* Reduce Effects Overrides */
+[data-reduced-motion="true"] .glass-sheet-container,
+.reduced-effects .glass-sheet-container {
+  transition: none !important;
+}
+
+[data-reduced-motion="true"] .glass-sheet,
+.reduced-effects .glass-sheet {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: var(--surface-card, #131722) !important;
+  border: 1px solid var(--border-medium) !important;
+  transition: none !important;
+  will-change: auto !important;
 }
 
 /* ---- Living Flow: Contour Glow Ring ---- */

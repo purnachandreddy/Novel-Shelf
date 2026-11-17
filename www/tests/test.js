@@ -5,6 +5,7 @@ const assert = require('assert');
 
 const rawHtml = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
 const cleanHtml = rawHtml.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+const sheetJs = fs.readFileSync(path.resolve(__dirname, '../sheet.js'), 'utf8');
 const js = fs.readFileSync(path.resolve(__dirname, '../app.js'), 'utf8');
 
 function createDom(initialStorage = {}) {
@@ -25,6 +26,8 @@ function createDom(initialStorage = {}) {
   // Mock scroll methods
   window.HTMLElement.prototype.scrollIntoView = function() {};
   window.scrollTo = function() {};
+  window.requestAnimationFrame = function(cb) { return setTimeout(cb, 0); };
+  window.cancelAnimationFrame = function(id) { clearTimeout(id); };
 
   // Mock history navigation for JSDOM
   const historyStack = [];
@@ -40,7 +43,8 @@ function createDom(initialStorage = {}) {
     window.dispatchEvent(new window.PopStateEvent('popstate', { state: prevState }));
   };
 
-  // Evaluate app script once in clean DOM
+  // Evaluate scripts in order
+  window.eval(sheetJs);
   window.eval(js);
   return { dom, window };
 }
@@ -394,6 +398,84 @@ async function runTests() {
     assert.strictEqual(appEl.inert, false);
     assert.strictEqual(appEl.getAttribute('aria-hidden'), null);
     assert.strictEqual(doc.activeElement, deleteBtn, 'Focus should be restored to delete button');
+  });
+
+  // A15: Glass Bottom-Sheet & Custom Select
+  await test('A15', 'Custom select opens glass bottom sheet, shows options, updates native select on choice, and closes via back handler with focus restored', async () => {
+    const { window } = createDom();
+    const doc = window.document;
+
+    // Load sample library to populate genres
+    doc.getElementById('btn-load-sample').click();
+
+    const sortSelect = doc.getElementById('sort-filter');
+    const genreSelect = doc.getElementById('genre-filter');
+    const sortBtn = doc.querySelector('.custom-select-btn[data-target="sort-filter"]');
+    const genreBtn = doc.querySelector('.custom-select-btn[data-target="genre-filter"]');
+
+    assert.ok(sortBtn, 'Custom select button for sort-filter should exist');
+    assert.ok(genreBtn, 'Custom select button for genre-filter should exist');
+    assert.ok(sortSelect.classList.contains('sr-only-select'), 'Native sort-filter should have sr-only-select class');
+    assert.ok(genreSelect.classList.contains('sr-only-select'), 'Native genre-filter should have sr-only-select class');
+
+    // 1. Open sort sheet via custom button
+    sortBtn.focus();
+    sortBtn.click();
+
+    const sheetContainer = doc.getElementById('glass-sheet-container');
+    const sheetEl = doc.getElementById('glass-sheet');
+    const appEl = doc.getElementById('app');
+    const navEl = doc.getElementById('floating-bottom-nav');
+
+    assert.ok(window.BottomSheet.isOpen(), 'BottomSheet should be open');
+    assert.strictEqual(sheetContainer.style.display, 'flex');
+    assert.strictEqual(sheetEl.getAttribute('role'), 'dialog');
+    assert.strictEqual(sheetEl.getAttribute('aria-modal'), 'true');
+    assert.strictEqual(appEl.inert, true, 'App should be inert while sheet is open');
+    assert.strictEqual(appEl.getAttribute('aria-hidden'), 'true');
+    assert.strictEqual(navEl.inert, true, 'Nav should be inert while sheet is open');
+
+    // Verify all 5 sort options are rendered and 'updated-desc' is selected
+    const optionRows = doc.querySelectorAll('.sheet-option-row');
+    assert.strictEqual(optionRows.length, 5, 'Should render 5 sort option rows');
+    const selectedRow = doc.querySelector('.sheet-option-row.selected');
+    assert.ok(selectedRow, 'Should have a selected row');
+    assert.strictEqual(selectedRow.dataset.value, 'updated-desc');
+    assert.strictEqual(selectedRow.getAttribute('aria-selected'), 'true');
+
+    // 2. Choose 'Highest Rated' (rating-desc)
+    let changeFired = false;
+    sortSelect.addEventListener('change', () => { changeFired = true; });
+
+    const ratingRow = doc.querySelector('.sheet-option-row[data-value="rating-desc"]');
+    ratingRow.click();
+
+    assert.strictEqual(sortSelect.value, 'rating-desc', 'Native select value should be updated');
+    assert.ok(changeFired, 'Native change event should fire on selection');
+    assert.strictEqual(sortBtn.querySelector('.custom-select-label').textContent, 'Highest Rated');
+
+    // Wait for auto-close timeout (120ms + 260ms animation)
+    await new Promise(r => setTimeout(r, 450));
+
+    assert.strictEqual(window.BottomSheet.isOpen(), false, 'BottomSheet should close after selection');
+    assert.strictEqual(appEl.inert, false, 'App should no longer be inert');
+    assert.strictEqual(doc.activeElement, sortBtn, 'Focus should be restored to sort button');
+
+    // 3. Test closing via Back handler
+    genreBtn.focus();
+    genreBtn.click();
+    assert.ok(window.BottomSheet.isOpen(), 'BottomSheet should open for genre-filter');
+    assert.strictEqual(appEl.inert, true);
+
+    // Call window.handleAppBack()
+    const handled = window.handleAppBack();
+    assert.strictEqual(handled, true, 'handleAppBack should handle and close sheet');
+
+    // Wait for close animation
+    await new Promise(r => setTimeout(r, 350));
+    assert.strictEqual(window.BottomSheet.isOpen(), false, 'Sheet should be closed by back handler');
+    assert.strictEqual(appEl.inert, false, 'App inert should be cleared');
+    assert.strictEqual(doc.activeElement, genreBtn, 'Focus should return to genre button');
   });
 
   console.log('\n--- Test Summary ---');
