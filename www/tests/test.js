@@ -478,6 +478,181 @@ async function runTests() {
     assert.strictEqual(doc.activeElement, genreBtn, 'Focus should return to genre button');
   });
 
+  // A16: Glass Date Picker — Selection and Clear
+  await test('A16', 'Glass date picker selects date, updates hidden input, fires change event, and clear button empties it', async () => {
+    const { window } = createDom();
+    const doc = window.document;
+
+    // Open novel form
+    doc.getElementById('btn-add-novel-top').click();
+
+    const startedInput = doc.getElementById('form-started');
+    const startedBtn = doc.querySelector('.custom-date-btn[data-target="form-started"]');
+    assert.ok(startedBtn, 'Custom date button for form-started should exist');
+    assert.ok(startedInput.classList.contains('sr-only-input'), 'Native input should have sr-only-input');
+
+    // Click custom date button to open calendar bottom sheet
+    startedBtn.click();
+    assert.ok(window.BottomSheet.isOpen(), 'BottomSheet should open for date picker');
+
+    const calWrap = doc.querySelector('.glass-calendar-wrap');
+    assert.ok(calWrap, 'Calendar container should exist in sheet');
+
+    // Pick 'Today' chip
+    const todayChip = calWrap.querySelector('.calendar-chip');
+    todayChip.click();
+
+    // Find selected day and confirm Set button
+    const setBtn = calWrap.querySelector('.btn-set');
+    assert.strictEqual(setBtn.disabled, false, 'Set button should be enabled');
+
+    let changeFired = false;
+    startedInput.addEventListener('change', () => { changeFired = true; });
+
+    setBtn.click();
+    await new Promise(r => setTimeout(r, 450)); // wait for sheet close
+
+    assert.ok(startedInput.value.length > 0, 'Started input value should be set');
+    assert.ok(changeFired, 'Change event should have fired');
+    assert.notStrictEqual(startedBtn.querySelector('.custom-date-label').textContent, 'Select date');
+    assert.strictEqual(window.BottomSheet.isOpen(), false, 'BottomSheet should be closed');
+
+    // Now test Clear button
+    startedBtn.click();
+    assert.ok(window.BottomSheet.isOpen(), 'Sheet reopens');
+
+    let clearChangeFired = false;
+    startedInput.addEventListener('change', () => { clearChangeFired = true; });
+
+    const clearBtn = doc.querySelector('.calendar-action-btn.btn-clear');
+    clearBtn.click();
+    await new Promise(r => setTimeout(r, 450));
+
+    assert.strictEqual(startedInput.value, '', 'Input should be empty after clear');
+    assert.ok(clearChangeFired, 'Change event should fire after clear');
+    assert.strictEqual(startedBtn.querySelector('.custom-date-label').textContent, 'Select date');
+    assert.strictEqual(window.BottomSheet.isOpen(), false, 'Sheet closes after clear');
+  });
+
+  // A17: Glass Date Picker — Leap year February 29 and Month-end navigation
+  await test('A17', 'Glass date picker correctly handles leap year Feb 29 and month-end transitions', async () => {
+    const { window } = createDom();
+    const doc = window.document;
+
+    doc.getElementById('btn-add-novel-top').click();
+    const startedBtn = doc.querySelector('.custom-date-btn[data-target="form-started"]');
+    startedBtn.click();
+
+    // Leap year date helper verification
+    assert.strictEqual(new Date(2028, 2, 0).getDate(), 29, '2028 Feb has 29 days');
+    assert.strictEqual(new Date(2027, 2, 0).getDate(), 28, '2027 Feb has 28 days');
+
+    // Click month-year button to enter jump mode
+    const monthYearBtn = doc.querySelector('.calendar-month-year-btn');
+    monthYearBtn.click();
+
+    const jumpGrid = doc.querySelector('.calendar-jump-grid');
+    assert.ok(jumpGrid, 'Jump grid should appear');
+
+    // Navigate to 2028
+    const curYear = new Date().getFullYear();
+    const yearDiff = 2028 - curYear;
+    const prevBtn = doc.querySelector('.calendar-nav-btn[aria-label="Previous year"]');
+    const nextBtn = doc.querySelector('.calendar-nav-btn[aria-label="Next year"]');
+    for (let i = 0; i < Math.abs(yearDiff); i++) {
+      if (yearDiff > 0) nextBtn.click();
+      else prevBtn.click();
+    }
+
+    // Click February in 2028
+    jumpGrid.querySelector('.calendar-month-card[data-month="2"]').click();
+
+    // Verify 29th exists and is inside current month
+    const day29 = doc.querySelector('.calendar-day[data-date="2028-02-29"]');
+    assert.ok(day29, 'Feb 29 should exist in 2028');
+    assert.strictEqual(day29.classList.contains('outside-month'), false, 'Feb 29 should be inside current month');
+
+    // Also verify April has 30 days and no day 31
+    monthYearBtn.click();
+    doc.querySelector('.calendar-jump-grid .calendar-month-card[data-month="4"]').click();
+    const apr30 = doc.querySelector('.calendar-day[data-date="2028-04-30"]');
+    assert.ok(apr30, 'Apr 30 should exist');
+    assert.strictEqual(apr30.classList.contains('outside-month'), false);
+    const apr31 = doc.querySelector('.calendar-day[data-date="2028-04-31"]');
+    assert.strictEqual(apr31, null, 'Apr 31 must not exist');
+
+    window.BottomSheet.close();
+    await new Promise(r => setTimeout(r, 450));
+  });
+
+  // A18: Glass Date Picker — Started after finished validation
+  await test('A18', 'Glass date picker validates that finished date cannot be earlier than started date', async () => {
+    const { window } = createDom();
+    const doc = window.document;
+
+    doc.getElementById('btn-add-novel-top').click();
+    const startedInput = doc.getElementById('form-started');
+    const finishedInput = doc.getElementById('form-finished');
+    const finishedBtn = doc.querySelector('.custom-date-btn[data-target="form-finished"]');
+
+    // Set started to 2026-10-15
+    startedInput.value = '2026-10-15';
+    window.updateCustomDate(startedInput);
+
+    // Open finished date picker
+    finishedBtn.click();
+
+    // Check that "Same as started" chip is present
+    const chips = Array.from(doc.querySelectorAll('.calendar-chip'));
+    const sameChip = chips.find(c => c.textContent.includes('Same as started'));
+    assert.ok(sameChip, 'Same as started chip should exist when started is filled');
+
+    // Jump to 2026-10
+    const monthYearBtn = doc.querySelector('.calendar-month-year-btn');
+    monthYearBtn.click();
+    const curYear = new Date().getFullYear();
+    const yearDiff = 2026 - curYear;
+    const prevBtn = doc.querySelector('.calendar-nav-btn[aria-label="Previous year"]');
+    const nextBtn = doc.querySelector('.calendar-nav-btn[aria-label="Next year"]');
+    for (let i = 0; i < Math.abs(yearDiff); i++) {
+      if (yearDiff > 0) nextBtn.click();
+      else prevBtn.click();
+    }
+    const jumpGrid = doc.querySelector('.calendar-jump-grid');
+    jumpGrid.querySelector('.calendar-month-card[data-month="10"]').click();
+
+    // Pick 2026-10-10 (earlier than started date 2026-10-15)
+    const day10 = doc.querySelector('.calendar-day[data-date="2026-10-10"]');
+    day10.click();
+
+    const hint = doc.querySelector('.calendar-validation-hint');
+    assert.ok(hint, 'Validation hint should be displayed when finished < started');
+    assert.ok(hint.textContent.includes('Finished date cannot be before Started date'));
+    const setBtn = doc.querySelector('.calendar-action-btn.btn-set');
+    assert.strictEqual(setBtn.disabled, true, 'Set button should be disabled on validation error');
+
+    // Now click 'Same as started' chip (re-queried from newly rendered DOM)
+    const sameChipNow = Array.from(doc.querySelectorAll('.calendar-chip')).find(c => c.textContent.includes('Same as started'));
+    assert.ok(sameChipNow, 'Same as started chip should be present in re-rendered DOM');
+    sameChipNow.click();
+
+    const hintAfterSame = doc.querySelector('.calendar-validation-hint');
+    assert.strictEqual(hintAfterSame, null, 'Validation hint should disappear for same date');
+    const setBtnAfterSame = doc.querySelector('.calendar-action-btn.btn-set');
+    assert.strictEqual(setBtnAfterSame.disabled, false, 'Set button should be enabled');
+
+    // Pick 2026-10-20 (after started date)
+    const day20 = doc.querySelector('.calendar-day[data-date="2026-10-20"]');
+    day20.click();
+    assert.strictEqual(doc.querySelector('.calendar-validation-hint'), null);
+    const setBtnFinal = doc.querySelector('.calendar-action-btn.btn-set');
+    assert.strictEqual(setBtnFinal.disabled, false);
+
+    setBtnFinal.click();
+    await new Promise(r => setTimeout(r, 450));
+    assert.strictEqual(finishedInput.value, '2026-10-20');
+  });
+
   console.log('\n--- Test Summary ---');
   const passed = results.filter(r => r.status === 'PASS').length;
   const failed = results.filter(r => r.status === 'FAIL').length;

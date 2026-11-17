@@ -1390,6 +1390,10 @@
         // If switching to non-completed, clear finished date
         if (formFinished) formFinished.value = '';
       }
+      if (window.updateCustomDate) {
+        window.updateCustomDate(formStarted);
+        window.updateCustomDate(formFinished);
+      }
     }
   }
 
@@ -1406,6 +1410,10 @@
     formChaptersTotal.value = '';
     formStarted.value = localDateString(); // Auto-set started to today on creation
     formFinished.value = '';
+    if (window.updateCustomDate) {
+      window.updateCustomDate(formStarted);
+      window.updateCustomDate(formFinished);
+    }
     // Reset genre quick pills visual state
     const genrePills = document.getElementById('genre-quick-pills');
     if (genrePills) genrePills.querySelectorAll('.pill-btn').forEach(p => p.classList.remove('active'));
@@ -1428,6 +1436,10 @@
     setRating(novel.rating || 0);
     formStarted.value = novel.started || '';
     formFinished.value = novel.finished || '';
+    if (window.updateCustomDate) {
+      window.updateCustomDate(formStarted);
+      window.updateCustomDate(formFinished);
+    }
     formSource.value = novel.source || '';
     formLink.value = novel.link || '';
     formGenre.value = novel.genre || '';
@@ -2750,6 +2762,12 @@
       if (genreFilter) window.initCustomSelect(genreFilter, { title: 'Filter by genre' });
     }
 
+    // Initialize custom glass date pickers
+    if (window.initDatePicker) {
+      if (formStarted) window.initDatePicker(formStarted, { title: 'Select Started Date' });
+      if (formFinished) window.initDatePicker(formFinished, { title: 'Select Finished Date' });
+    }
+
     // View toggles
     viewGridBtn.addEventListener('click', () => applyViewMode('grid'));
     viewListBtn.addEventListener('click', () => applyViewMode('list'));
@@ -2813,7 +2831,14 @@
     document.querySelectorAll('.btn-quick-date').forEach(btn => {
       btn.addEventListener('click', () => {
         const input = document.getElementById(btn.dataset.target);
-        if (input) input.value = localDateString();
+        if (input) {
+          input.value = localDateString();
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+          if (window.updateCustomDate) {
+            window.updateCustomDate(input);
+          }
+        }
       });
     });
 

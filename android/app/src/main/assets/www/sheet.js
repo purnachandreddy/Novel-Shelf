@@ -31,10 +31,6 @@
   let dragCurrentY = 0;
   let dragStartTime = 0;
 
-  const safeRAF = (typeof requestAnimationFrame === 'function')
-    ? requestAnimationFrame
-    : (cb) => setTimeout(cb, 16);
-
   function ensureSheetDOM() {
     if (sheetContainer) return;
 
@@ -236,7 +232,7 @@
         sheetContainer.classList.add('open');
       } else {
         // Trigger smooth slide-in
-        safeRAF(() => {
+        requestAnimationFrame(() => {
           if (sheetContainer) sheetContainer.classList.add('open');
         });
       }
@@ -428,7 +424,7 @@
 
       // Scroll selected item into view
       if (selectedRow) {
-        safeRAF(() => {
+        requestAnimationFrame(() => {
           try { selectedRow.scrollIntoView({ block: 'nearest' }); } catch (e) {}
         });
       }
@@ -461,12 +457,478 @@
     }
   }
 
+  /**
+   * --- Glass Date Picker Component ---
+   * Replaces native <input type="date"> with a liquid-glass bottom sheet calendar.
+   * Native input stays in DOM as source of truth for value and change events.
+   */
+  const MONTH_NAMES_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const MONTH_NAMES_FULL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+  function parseYMD(str) {
+    if (!str || typeof str !== 'string') return null;
+    const parts = str.trim().split('-');
+    if (parts.length !== 3) return null;
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    const d = parseInt(parts[2], 10);
+    if (isNaN(y) || isNaN(m) || isNaN(d)) return null;
+    return { year: y, month: m, day: d };
+  }
+
+  function toYMD(y, m, d) {
+    const sy = String(y).padStart(4, '0');
+    const sm = String(m).padStart(2, '0');
+    const sd = String(d).padStart(2, '0');
+    return `${sy}-${sm}-${sd}`;
+  }
+
+  function getLocalTodayYMD() {
+    const now = new Date();
+    return toYMD(now.getFullYear(), now.getMonth() + 1, now.getDate());
+  }
+
+  function formatDisplayDate(dateStr) {
+    const p = parseYMD(dateStr);
+    if (!p) return '';
+    const mStr = MONTH_NAMES_SHORT[p.month - 1] || '';
+    return `${p.day} ${mStr} ${p.year}`;
+  }
+
+  function getDaysInMonth(year, month) {
+    return new Date(year, month, 0).getDate();
+  }
+
+  function getFirstWeekday(year, month) {
+    const day = new Date(year, month - 1, 1).getDay();
+    return (day + 6) % 7;
+  }
+
+  function initDatePicker(inputEl, options = {}) {
+    if (!inputEl || inputEl._customDate) return inputEl._customDate;
+
+    // Hide native input visually while keeping it accessible and form-linked
+    inputEl.classList.add('sr-only-input');
+
+    const defaultTitle = inputEl.id === 'form-started'
+      ? 'Select Started Date'
+      : (inputEl.id === 'form-finished' ? 'Select Finished Date' : 'Select Date');
+    const title = options.title || inputEl.getAttribute('aria-label') || defaultTitle;
+
+    // Create custom glass date button
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'custom-date-btn glass-ring';
+    btn.setAttribute('aria-haspopup', 'dialog');
+    btn.setAttribute('aria-expanded', 'false');
+    btn.setAttribute('aria-label', title);
+    if (inputEl.id) {
+      btn.dataset.target = inputEl.id;
+    }
+
+    const labelSpan = document.createElement('span');
+    labelSpan.className = 'custom-date-label';
+    btn.appendChild(labelSpan);
+
+    const iconSpan = document.createElement('span');
+    iconSpan.className = 'custom-date-icon';
+    iconSpan.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>';
+    btn.appendChild(iconSpan);
+
+    // Insert button right after input
+    if (inputEl.nextSibling) {
+      inputEl.parentNode.insertBefore(btn, inputEl.nextSibling);
+    } else {
+      inputEl.parentNode.appendChild(btn);
+    }
+
+    const updateLabel = () => {
+      const val = inputEl.value;
+      if (val) {
+        labelSpan.textContent = formatDisplayDate(val) || val;
+        btn.classList.remove('is-empty');
+      } else {
+        labelSpan.textContent = 'Select date';
+        btn.classList.add('is-empty');
+      }
+    };
+    updateLabel();
+
+    inputEl.addEventListener('change', updateLabel);
+    inputEl.addEventListener('input', updateLabel);
+
+    const openSheet = () => {
+      btn.setAttribute('aria-expanded', 'true');
+      const todayYMD = getLocalTodayYMD();
+      const todayParts = parseYMD(todayYMD) || { year: new Date().getFullYear(), month: new Date().getMonth() + 1, day: new Date().getDate() };
+
+      let currentVal = inputEl.value || '';
+      let currentParts = parseYMD(currentVal) || todayParts;
+
+      let viewYear = currentParts.year;
+      let viewMonth = currentParts.month;
+      let pendingDate = currentVal || '';
+      let isJumpMode = false;
+
+      const calWrap = document.createElement('div');
+      calWrap.className = 'glass-calendar-wrap';
+
+      function renderCalendar() {
+        calWrap.innerHTML = '';
+
+        // Validation against opposite date field
+        let validationError = '';
+        if (inputEl.id === 'form-finished') {
+          const startedEl = document.getElementById('form-started');
+          if (startedEl && startedEl.value && pendingDate) {
+            if (pendingDate < startedEl.value) {
+              validationError = `Finished date cannot be before Started date (${formatDisplayDate(startedEl.value)})`;
+            }
+          }
+        } else if (inputEl.id === 'form-started') {
+          const finishedEl = document.getElementById('form-finished');
+          if (finishedEl && finishedEl.value && pendingDate) {
+            if (pendingDate > finishedEl.value) {
+              validationError = `Started date cannot be after Finished date (${formatDisplayDate(finishedEl.value)})`;
+            }
+          }
+        }
+
+        // Quick helper chips (only in normal calendar day view)
+        if (!isJumpMode) {
+          const chipsRow = document.createElement('div');
+          chipsRow.className = 'calendar-quick-chips';
+
+          const todayChip = document.createElement('button');
+          todayChip.type = 'button';
+          todayChip.className = 'calendar-chip';
+          todayChip.textContent = 'Today';
+          todayChip.dataset.squish = 'true';
+          todayChip.addEventListener('click', () => {
+            pendingDate = todayYMD;
+            viewYear = todayParts.year;
+            viewMonth = todayParts.month;
+            if (window.Motion && typeof window.Motion.haptic === 'function') window.Motion.haptic('tick');
+            renderCalendar();
+          });
+          chipsRow.appendChild(todayChip);
+
+          if (inputEl.id === 'form-finished') {
+            const startedEl = document.getElementById('form-started');
+            if (startedEl && startedEl.value) {
+              const sameChip = document.createElement('button');
+              sameChip.type = 'button';
+              sameChip.className = 'calendar-chip';
+              sameChip.textContent = 'Same as started';
+              sameChip.dataset.squish = 'true';
+              sameChip.addEventListener('click', () => {
+                pendingDate = startedEl.value;
+                const sp = parseYMD(startedEl.value);
+                if (sp) {
+                  viewYear = sp.year;
+                  viewMonth = sp.month;
+                }
+                if (window.Motion && typeof window.Motion.haptic === 'function') window.Motion.haptic('tick');
+                renderCalendar();
+              });
+              chipsRow.appendChild(sameChip);
+            }
+          }
+
+          calWrap.appendChild(chipsRow);
+        }
+
+        // Header Navigation Row
+        const navRow = document.createElement('div');
+        navRow.className = 'calendar-nav';
+
+        const prevBtn = document.createElement('button');
+        prevBtn.type = 'button';
+        prevBtn.className = 'calendar-nav-btn';
+        prevBtn.setAttribute('aria-label', isJumpMode ? 'Previous year' : 'Previous month');
+        prevBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>';
+        prevBtn.addEventListener('click', () => {
+          if (isJumpMode) {
+            viewYear -= 1;
+          } else {
+            if (viewMonth === 1) { viewMonth = 12; viewYear -= 1; }
+            else { viewMonth -= 1; }
+          }
+          renderCalendar();
+        });
+        navRow.appendChild(prevBtn);
+
+        const monthYearBtn = document.createElement('button');
+        monthYearBtn.type = 'button';
+        monthYearBtn.className = 'calendar-month-year-btn';
+        monthYearBtn.setAttribute('aria-label', isJumpMode ? 'Return to days view' : 'Jump to month or year');
+        const chevronRot = isJumpMode ? 'style="transform: rotate(180deg); transition: transform 0.2s;"' : 'style="transition: transform 0.2s;"';
+        monthYearBtn.innerHTML = `<span>${MONTH_NAMES_FULL[viewMonth - 1]} ${viewYear}</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" ${chevronRot}><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+        monthYearBtn.addEventListener('click', () => {
+          isJumpMode = !isJumpMode;
+          renderCalendar();
+        });
+        navRow.appendChild(monthYearBtn);
+
+        const nextBtn = document.createElement('button');
+        nextBtn.type = 'button';
+        nextBtn.className = 'calendar-nav-btn';
+        nextBtn.setAttribute('aria-label', isJumpMode ? 'Next year' : 'Next month');
+        nextBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>';
+        nextBtn.addEventListener('click', () => {
+          if (isJumpMode) {
+            viewYear += 1;
+          } else {
+            if (viewMonth === 12) { viewMonth = 1; viewYear += 1; }
+            else { viewMonth += 1; }
+          }
+          renderCalendar();
+        });
+        navRow.appendChild(nextBtn);
+
+        calWrap.appendChild(navRow);
+
+        if (isJumpMode) {
+          // 12-Month Jump Grid
+          const jumpGrid = document.createElement('div');
+          jumpGrid.className = 'calendar-jump-grid';
+          MONTH_NAMES_SHORT.forEach((mName, idx) => {
+            const mNum = idx + 1;
+            const mBtn = document.createElement('button');
+            mBtn.type = 'button';
+            mBtn.className = 'calendar-month-card' + (mNum === viewMonth ? ' selected' : '');
+            mBtn.textContent = mName;
+            mBtn.dataset.month = String(mNum);
+            mBtn.addEventListener('click', () => {
+              viewMonth = mNum;
+              isJumpMode = false;
+              renderCalendar();
+            });
+            jumpGrid.appendChild(mBtn);
+          });
+          calWrap.appendChild(jumpGrid);
+        } else {
+          // Weekdays Row
+          const weekdaysRow = document.createElement('div');
+          weekdaysRow.className = 'calendar-weekdays';
+          weekdaysRow.setAttribute('aria-hidden', 'true');
+          WEEKDAYS.forEach(w => {
+            const wSpan = document.createElement('span');
+            wSpan.textContent = w;
+            weekdaysRow.appendChild(wSpan);
+          });
+          calWrap.appendChild(weekdaysRow);
+
+          // 6x7 Calendar Grid
+          const grid = document.createElement('div');
+          grid.className = 'calendar-grid';
+          grid.setAttribute('role', 'grid');
+          grid.setAttribute('aria-label', `${MONTH_NAMES_FULL[viewMonth - 1]} ${viewYear}`);
+
+          // Swipe gesture to switch month
+          let touchStartX = 0;
+          let touchStartY = 0;
+          grid.addEventListener('touchstart', (e) => {
+            if (e.touches && e.touches[0]) {
+              touchStartX = e.touches[0].clientX;
+              touchStartY = e.touches[0].clientY;
+            }
+          }, { passive: true });
+          grid.addEventListener('touchend', (e) => {
+            if (e.changedTouches && e.changedTouches[0]) {
+              const dx = e.changedTouches[0].clientX - touchStartX;
+              const dy = e.changedTouches[0].clientY - touchStartY;
+              if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+                if (dx < 0) {
+                  // Swipe left -> next month
+                  if (viewMonth === 12) { viewMonth = 1; viewYear += 1; }
+                  else { viewMonth += 1; }
+                } else {
+                  // Swipe right -> prev month
+                  if (viewMonth === 1) { viewMonth = 12; viewYear -= 1; }
+                  else { viewMonth -= 1; }
+                }
+                renderCalendar();
+              }
+            }
+          }, { passive: true });
+
+          const fw = getFirstWeekday(viewYear, viewMonth);
+          const daysInCur = getDaysInMonth(viewYear, viewMonth);
+          const prevY = viewMonth === 1 ? viewYear - 1 : viewYear;
+          const prevM = viewMonth === 1 ? 12 : viewMonth - 1;
+          const daysInPrev = getDaysInMonth(prevY, prevM);
+          const nextY = viewMonth === 12 ? viewYear + 1 : viewYear;
+          const nextM = viewMonth === 12 ? 1 : viewMonth + 1;
+
+          function createDayCell(dayNum, dateStr, isOutside, y, m) {
+            const dayBtn = document.createElement('button');
+            dayBtn.type = 'button';
+            dayBtn.className = 'calendar-day';
+            dayBtn.textContent = String(dayNum);
+            dayBtn.dataset.date = dateStr;
+            dayBtn.dataset.squish = 'true';
+            dayBtn.setAttribute('role', 'gridcell');
+
+            if (isOutside) dayBtn.classList.add('outside-month');
+            if (dateStr === todayYMD) dayBtn.classList.add('is-today');
+            if (dateStr === pendingDate) {
+              dayBtn.classList.add('is-selected');
+              dayBtn.setAttribute('aria-selected', 'true');
+            } else {
+              dayBtn.setAttribute('aria-selected', 'false');
+            }
+
+            // Max date: today (cannot pick future dates)
+            if (dateStr > todayYMD) {
+              dayBtn.classList.add('disabled');
+              dayBtn.setAttribute('aria-disabled', 'true');
+            } else {
+              dayBtn.addEventListener('click', () => {
+                pendingDate = dateStr;
+                viewYear = y;
+                viewMonth = m;
+                if (window.Motion && typeof window.Motion.haptic === 'function') {
+                  window.Motion.haptic('tick');
+                }
+                renderCalendar();
+              });
+            }
+            return dayBtn;
+          }
+
+          // Previous month leading cells
+          for (let i = fw - 1; i >= 0; i--) {
+            const d = daysInPrev - i;
+            const dStr = toYMD(prevY, prevM, d);
+            grid.appendChild(createDayCell(d, dStr, true, prevY, prevM));
+          }
+          // Current month cells
+          for (let d = 1; d <= daysInCur; d++) {
+            const dStr = toYMD(viewYear, viewMonth, d);
+            grid.appendChild(createDayCell(d, dStr, false, viewYear, viewMonth));
+          }
+          // Next month trailing cells up to 42 (6 rows x 7 cols)
+          const remaining = 42 - (fw + daysInCur);
+          for (let d = 1; d <= remaining; d++) {
+            const dStr = toYMD(nextY, nextM, d);
+            grid.appendChild(createDayCell(d, dStr, true, nextY, nextM));
+          }
+
+          calWrap.appendChild(grid);
+        }
+
+        // Inline validation error hint
+        if (validationError) {
+          const hint = document.createElement('div');
+          hint.className = 'calendar-validation-hint';
+          hint.setAttribute('role', 'alert');
+          hint.textContent = validationError;
+          calWrap.appendChild(hint);
+        }
+
+        // Actions Row
+        const actions = document.createElement('div');
+        actions.className = 'calendar-actions';
+
+        const clearBtn = document.createElement('button');
+        clearBtn.type = 'button';
+        clearBtn.className = 'calendar-action-btn btn-clear';
+        clearBtn.textContent = 'Clear';
+        clearBtn.addEventListener('click', () => {
+          inputEl.value = '';
+          inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+          inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+          updateLabel();
+          BottomSheet.close();
+        });
+        actions.appendChild(clearBtn);
+
+        const rightActions = document.createElement('div');
+        rightActions.className = 'calendar-actions-right';
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.className = 'calendar-action-btn btn-cancel';
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.addEventListener('click', () => BottomSheet.close());
+        rightActions.appendChild(cancelBtn);
+
+        const setBtn = document.createElement('button');
+        setBtn.type = 'button';
+        setBtn.className = 'calendar-action-btn btn-set primary';
+        setBtn.textContent = 'Set';
+        if (validationError || !pendingDate) {
+          setBtn.disabled = true;
+        }
+        setBtn.addEventListener('click', () => {
+          if (pendingDate && !validationError) {
+            inputEl.value = pendingDate;
+            inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+            inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+            updateLabel();
+          }
+          BottomSheet.close();
+        });
+        rightActions.appendChild(setBtn);
+        actions.appendChild(rightActions);
+
+        calWrap.appendChild(actions);
+      }
+
+      renderCalendar();
+
+      BottomSheet.open(calWrap, {
+        title,
+        triggerEl: btn,
+        onClose: () => {
+          btn.setAttribute('aria-expanded', 'false');
+        }
+      });
+    };
+
+    btn.addEventListener('click', openSheet);
+    btn.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openSheet();
+      }
+    });
+
+    const controller = {
+      button: btn,
+      input: inputEl,
+      update: updateLabel
+    };
+
+    inputEl._customDate = controller;
+    return controller;
+  }
+
+  function updateCustomDate(inputEl) {
+    if (inputEl && inputEl._customDate) {
+      inputEl._customDate.update();
+    }
+  }
+
   // Export globally
   window.BottomSheet = BottomSheet;
   window.initCustomSelect = initCustomSelect;
   window.updateCustomSelect = updateCustomSelect;
+  window.initDatePicker = initDatePicker;
+  window.updateCustomDate = updateCustomDate;
+  window.formatDisplayDate = formatDisplayDate;
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { BottomSheet, initCustomSelect, updateCustomSelect };
+    module.exports = {
+      BottomSheet,
+      initCustomSelect,
+      updateCustomSelect,
+      initDatePicker,
+      updateCustomDate,
+      formatDisplayDate
+    };
   }
 })();
+
