@@ -428,7 +428,9 @@ async function runTests() {
     const navEl = doc.getElementById('floating-bottom-nav');
 
     assert.ok(window.BottomSheet.isOpen(), 'BottomSheet should be open');
-    assert.strictEqual(sheetContainer.style.display, 'flex');
+    assert.strictEqual(sheetContainer.style.display, 'grid');
+    assert.ok(sheetContainer.classList.contains('glass-popup-container'));
+    assert.ok(sheetEl.classList.contains('glass-popup-card'));
     assert.strictEqual(sheetEl.getAttribute('role'), 'dialog');
     assert.strictEqual(sheetEl.getAttribute('aria-modal'), 'true');
     assert.strictEqual(appEl.inert, true, 'App should be inert while sheet is open');

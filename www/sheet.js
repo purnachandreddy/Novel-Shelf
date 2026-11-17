@@ -36,7 +36,7 @@
 
     sheetContainer = document.createElement('div');
     sheetContainer.id = 'glass-sheet-container';
-    sheetContainer.className = 'glass-sheet-container';
+    sheetContainer.className = 'glass-sheet-container glass-popup-container';
     sheetContainer.style.display = 'none';
 
     sheetScrim = document.createElement('div');
@@ -46,15 +46,10 @@
 
     sheetEl = document.createElement('div');
     sheetEl.id = 'glass-sheet';
-    sheetEl.className = 'glass-sheet glass-ring';
+    sheetEl.className = 'glass-sheet glass-popup-card glass-ring';
     sheetEl.setAttribute('role', 'dialog');
     sheetEl.setAttribute('aria-modal', 'true');
     sheetEl.setAttribute('aria-labelledby', 'glass-sheet-title');
-
-    sheetHandleArea = document.createElement('div');
-    sheetHandleArea.className = 'glass-sheet-handle-area';
-    sheetHandleArea.innerHTML = '<div class="glass-sheet-handle"></div>';
-    sheetEl.appendChild(sheetHandleArea);
 
     const header = document.createElement('div');
     header.className = 'glass-sheet-header';
@@ -84,76 +79,6 @@
     // Event bindings
     sheetScrim.addEventListener('click', () => BottomSheet.close());
     sheetCloseBtn.addEventListener('click', () => BottomSheet.close());
-    setupDragGestures();
-  }
-
-  function setupDragGestures() {
-    if (!sheetHandleArea) return;
-
-    const onPointerDown = (e) => {
-      // Only drag with primary pointer
-      if (e.button && e.button !== 0) return;
-      isDragging = true;
-      dragStartY = e.clientY;
-      dragCurrentY = e.clientY;
-      dragStartTime = performance.now();
-      sheetEl.style.transition = 'none';
-      if (typeof sheetHandleArea.setPointerCapture === 'function') {
-        try { sheetHandleArea.setPointerCapture(e.pointerId); } catch (err) {}
-      }
-    };
-
-    const onPointerMove = (e) => {
-      if (!isDragging) return;
-      dragCurrentY = e.clientY;
-      const dy = dragCurrentY - dragStartY;
-      if (dy > 0) {
-        // Direct tracking downward
-        sheetEl.style.transform = `translateY(${dy}px)`;
-      } else {
-        // Rubber-band resistance upward
-        const rubber = dy * 0.22;
-        sheetEl.style.transform = `translateY(${rubber}px)`;
-      }
-    };
-
-    const onPointerEnd = (e) => {
-      if (!isDragging) return;
-      isDragging = false;
-      const dy = dragCurrentY - dragStartY;
-      const dt = Math.max(1, performance.now() - dragStartTime);
-      const velocity = dy / dt; // px/ms
-      const height = sheetEl.offsetHeight || 300;
-      const threshold = height * 0.25;
-
-      sheetEl.style.transition = '';
-
-      if (dy > threshold || (velocity > 0.45 && dy > 24)) {
-        BottomSheet.close();
-      } else {
-        // Spring back to 0
-        const reduced = typeof window.effectsReduced === 'function' ? window.effectsReduced() : false;
-        if (reduced || !window.Motion || typeof window.Motion.createSpring !== 'function') {
-          sheetEl.style.transform = 'translateY(0)';
-        } else {
-          window.Motion.createSpring({
-            stiffness: 260,
-            damping: 24,
-            mass: 1,
-            from: Math.max(0, dy),
-            to: 0,
-            onUpdate: (v) => {
-              if (sheetEl) sheetEl.style.transform = `translateY(${v}px)`;
-            }
-          });
-        }
-      }
-    };
-
-    sheetHandleArea.addEventListener('pointerdown', onPointerDown);
-    sheetHandleArea.addEventListener('pointermove', onPointerMove);
-    sheetHandleArea.addEventListener('pointerup', onPointerEnd);
-    sheetHandleArea.addEventListener('pointercancel', onPointerEnd);
   }
 
   function setBackgroundInert(inert) {
@@ -199,6 +124,11 @@
         BottomSheet.close();
       }
 
+      // Blur active input/textarea to dismiss software keyboard before popup opens
+      if (document.activeElement && typeof document.activeElement.blur === 'function') {
+        try { document.activeElement.blur(); } catch (e) {}
+      }
+
       isOpen = true;
       activeTriggerEl = options.triggerEl || document.activeElement;
       activeCloseCallback = options.onClose || null;
@@ -210,8 +140,18 @@
       sheetContentEl.innerHTML = '';
       if (typeof content === 'string') {
         sheetContentEl.innerHTML = content;
+        if (content.includes('glass-calendar-wrap')) {
+          sheetEl.classList.add('calendar-popup');
+        } else {
+          sheetEl.classList.remove('calendar-popup');
+        }
       } else if (content instanceof window.HTMLElement) {
         sheetContentEl.appendChild(content);
+        if (content.classList.contains('glass-calendar-wrap') || content.querySelector('.glass-calendar-wrap')) {
+          sheetEl.classList.add('calendar-popup');
+        } else {
+          sheetEl.classList.remove('calendar-popup');
+        }
       }
 
       // Title
@@ -223,15 +163,15 @@
         sheetTitleEl.style.display = '';
       }
 
-      // Show container
-      sheetContainer.style.display = 'flex';
+      // Show container centered
+      sheetContainer.style.display = 'grid';
       sheetEl.style.transform = '';
 
       const reduced = typeof window.effectsReduced === 'function' ? window.effectsReduced() : false;
       if (reduced) {
         sheetContainer.classList.add('open');
       } else {
-        // Trigger smooth slide-in
+        // Trigger smooth scale/fade-in
         requestAnimationFrame(() => {
           if (sheetContainer) sheetContainer.classList.add('open');
         });
@@ -265,6 +205,7 @@
         if (!isOpen && sheetContainer) {
           sheetContainer.style.display = 'none';
           sheetContentEl.innerHTML = '';
+          sheetEl.classList.remove('calendar-popup');
         }
         setBackgroundInert(false);
 
@@ -287,7 +228,7 @@
       if (reduced) {
         finishClose();
       } else {
-        setTimeout(finishClose, 260);
+        setTimeout(finishClose, 160);
       }
     }
   };
@@ -914,6 +855,7 @@
 
   // Export globally
   window.BottomSheet = BottomSheet;
+  window.GlassPopup = BottomSheet;
   window.initCustomSelect = initCustomSelect;
   window.updateCustomSelect = updateCustomSelect;
   window.initDatePicker = initDatePicker;
@@ -923,6 +865,7 @@
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
       BottomSheet,
+      GlassPopup: BottomSheet,
       initCustomSelect,
       updateCustomSelect,
       initDatePicker,
