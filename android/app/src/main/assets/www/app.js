@@ -301,6 +301,7 @@
 
   // Confirm Dialog
   const confirmDialog = document.getElementById('confirm-dialog');
+  const confirmTitle = document.getElementById('confirm-title');
   const confirmMessage = document.getElementById('confirm-message');
   const btnConfirmYes = document.getElementById('btn-confirm-yes');
   const btnConfirmNo = document.getElementById('btn-confirm-no');
@@ -358,7 +359,7 @@
 
   // --- Custom Confirm Dialog (2-button: yes / no) ---
   // A9 — guard against two dialogs open at once; expose cancel handle for popstate
-  function showConfirm(message, yesLabel = 'Delete', noLabel = 'Cancel') {
+  function showConfirm(message, yesLabel = 'Delete', noLabel = 'Cancel', title = 'Delete novel?') {
     if (confirmDialog.style.display === 'flex') return Promise.resolve(false);
     return new Promise((resolve) => {
       confirmTriggerElement = document.activeElement;
@@ -372,6 +373,7 @@
         floatingNav.setAttribute('aria-hidden', 'true');
       }
 
+      if (confirmTitle) confirmTitle.textContent = title;
       confirmMessage.textContent = message;
       btnConfirmYes.textContent = yesLabel;
       btnConfirmNo.textContent = noLabel;
@@ -429,6 +431,7 @@
         floatingNav.setAttribute('aria-hidden', 'true');
       }
 
+      if (confirmTitle) confirmTitle.textContent = 'Import Options';
       confirmMessage.textContent = message;
       btnConfirmYes.textContent = 'Replace';
       btnConfirmNo.textContent = 'Cancel';
@@ -1656,14 +1659,21 @@
   }
 
   async function deleteNovel(id) {
-    const novel = library.find(n => n.id === id);
-    if (!novel) return;
+    const novelIndex = library.findIndex(n => n.id === id);
+    if (novelIndex === -1) return;
+    const novel = library[novelIndex];
 
-    const confirmed = await showConfirm(`Delete "${novel.title}"? This cannot be undone.`);
+    const confirmed = await showConfirm(
+      `Delete "${novel.title}"? This cannot be undone.`,
+      'Delete',
+      'Cancel',
+      'Delete novel?'
+    );
     if (!confirmed) return;
 
-    // A4 — snapshot for rollback
+    // Snapshot for rollback / undo
     const snapshot = JSON.parse(JSON.stringify(library));
+    const deletedNovel = JSON.parse(JSON.stringify(novel));
     library = library.filter(n => n.id !== id);
 
     const saved = saveLibrary();
@@ -1678,7 +1688,20 @@
       closeNovelDetails(true);
     }
     viewingNovelId = null;
-    showToast(`Deleted "${novel.title}"`, 'success');
+
+    showToast(`Deleted "${novel.title}"`, 'undo', {
+      text: 'Undo',
+      onClick: () => {
+        if (novelIndex >= 0 && novelIndex <= library.length) {
+          library.splice(novelIndex, 0, deletedNovel);
+        } else {
+          library.unshift(deletedNovel);
+        }
+        saveLibrary();
+        renderLibrary();
+        showToast('Novel restored', 'success');
+      }
+    }, 6000);
   }
 
   // --- Cover Handling ---
@@ -2632,11 +2655,25 @@
   }
 
   // --- Toast ---
-  function showToast(message, type = 'info') {
+  function showToast(message, type = 'info', action = null, duration = 2800) {
     const toast = document.createElement('div');
-    toast.className = 'toast' + (type === 'success' ? ' toast-success' : type === 'error' ? ' toast-error' : '');
-    const icon = type === 'success' ? '✓' : type === 'error' ? '⚠' : 'ℹ';
-    toast.innerHTML = `<span class="toast-icon">${icon}</span><span>${escHtml(message)}</span>`;
+    toast.className = 'toast toast-' + type;
+    const icon = type === 'success' ? '✓' : type === 'error' ? '⚠' : (type === 'undo' ? '↩' : 'ℹ');
+    let actionHtml = '';
+    if (action && action.text) {
+      actionHtml = `<button type="button" class="toast-action-btn">${escHtml(action.text)}</button>`;
+    }
+    toast.innerHTML = `<span class="toast-icon toast-icon-${type}">${icon}</span><span class="toast-message">${escHtml(message)}</span>${actionHtml}`;
+    if (action && action.onClick) {
+      const btn = toast.querySelector('.toast-action-btn');
+      if (btn) {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          action.onClick();
+          toast.remove();
+        });
+      }
+    }
     toastContainer.appendChild(toast);
 
     // Limit max toasts
@@ -2646,7 +2683,7 @@
     setTimeout(() => {
       toast.classList.add('toast-out');
       setTimeout(() => toast.remove(), 300);
-    }, 2800);
+    }, duration);
   }
 
   function escHtml(str) {

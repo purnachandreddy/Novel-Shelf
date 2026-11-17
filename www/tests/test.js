@@ -761,6 +761,60 @@ async function runTests() {
     await new Promise(r => setTimeout(r, 450));
   });
 
+  // A23: Labels, dialogs, toasts and undo for deletes
+  await test('A23', 'Labels, confirm dialog structure, and delete undo restore original state', async () => {
+    const { window } = createDom();
+    const doc = window.document;
+
+    // Add a novel without rating
+    doc.getElementById('btn-add-novel-top').click();
+    doc.getElementById('form-title').value = 'Reverend Insanity';
+    doc.getElementById('novel-form').dispatchEvent(new window.Event('submit', { cancelable: true, bubbles: true }));
+
+    // Check shelf card unrated badge
+    const card = doc.querySelector('.novel-card');
+    assert.ok(card, 'Novel card should exist');
+    const unratedShelf = card.querySelector('.rating-unrated');
+    assert.ok(unratedShelf, 'Unrated shelf badge should have rating-unrated class');
+    assert.strictEqual(unratedShelf.textContent, 'Not rated');
+
+    // Click card to open details
+    card.click();
+    const unratedDetail = doc.querySelector('.detail-unrated');
+    assert.ok(unratedDetail, 'Detail screen should have detail-unrated class');
+    assert.strictEqual(unratedDetail.textContent, 'Not rated');
+
+    // Trigger delete
+    doc.getElementById('btn-detail-delete').click();
+    const confirmDialog = doc.getElementById('confirm-dialog');
+    assert.strictEqual(confirmDialog.style.display, 'flex');
+    assert.strictEqual(doc.getElementById('confirm-title').textContent, 'Delete novel?');
+    assert.ok(doc.getElementById('confirm-message').textContent.includes('Reverend Insanity'));
+
+    // Confirm deletion
+    doc.getElementById('btn-confirm-yes').click();
+    await new Promise(r => setTimeout(r, 50));
+
+    // Verify novel removed from shelf
+    assert.strictEqual(doc.querySelectorAll('.novel-card').length, 0, 'Novel should be deleted from shelf');
+
+    // Check toast with Undo button
+    const toast = doc.querySelector('.toast-undo') || doc.querySelector('.toast:last-child');
+    assert.ok(toast, 'Toast notification should be displayed');
+    const undoBtn = toast.querySelector('.toast-action-btn');
+    assert.ok(undoBtn, 'Toast should contain an Undo button');
+    assert.strictEqual(undoBtn.textContent, 'Undo');
+
+    // Click Undo
+    undoBtn.click();
+    await new Promise(r => setTimeout(r, 50));
+
+    // Verify novel is restored
+    const restoredCards = doc.querySelectorAll('.novel-card');
+    assert.strictEqual(restoredCards.length, 1, 'Novel should be restored by Undo');
+    assert.ok(restoredCards[0].textContent.includes('Reverend Insanity'));
+  });
+
   console.log('\n--- Test Summary ---');
   const passed = results.filter(r => r.status === 'PASS').length;
   const failed = results.filter(r => r.status === 'FAIL').length;
