@@ -36,9 +36,9 @@
   --blur-lg: 24px;
 
   /* Frosted Dark Tokens (ColorOS 17 Living Flow) */
-  --frost-tint: rgba(14, 18, 28, 0.55);
+  --frost-tint: rgba(14, 18, 28, 0.62);
   --frost-tint-amber: rgba(245, 158, 11, 0.28);
-  --frost-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04));
+  --frost-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.03));
   --frost-fallback: rgba(14, 18, 28, 0.88);
   --nav-clearance: calc(96px + var(--inset-bottom));
 
@@ -892,12 +892,13 @@ select option {
 /* ---- Status Tabs ---- */
 .status-tabs {
   display: flex;
-  gap: 4px;
+  gap: 6px;
   overflow-x: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  padding-bottom: 6px;
-  padding-right: 20px;
+  padding: 6px 20px 6px 0;
+  margin-top: -4px;
+  margin-bottom: -4px;
   scroll-snap-type: x mandatory;
   mask-image: linear-gradient(to right, black calc(100% - 32px), transparent 100%);
   -webkit-mask-image: linear-gradient(to right, black calc(100% - 32px), transparent 100%);
@@ -948,7 +949,7 @@ select option {
   color: var(--text-primary);
   background: var(--glass-fill-strong);
   border-color: var(--glass-edge-strong);
-  box-shadow: var(--contour-edge), 0 0 10px -2px rgba(245, 158, 11, 0.22);
+  box-shadow: var(--contour-edge), 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
 .tab-badge {

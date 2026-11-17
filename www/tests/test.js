@@ -230,10 +230,10 @@ async function runTests() {
     doc.getElementById('btn-load-sample').click();
     const cardsBefore = Array.from(doc.querySelectorAll('.novel-card')).map(c => c.dataset.id);
 
-    // Increment middle card
-    const middleCardId = cardsBefore[2];
-    const middleCard = doc.querySelector(`[data-id="${middleCardId}"]`);
-    const btn = middleCard.querySelector('[data-action="quick-add"]');
+    // Increment an active card
+    const cardWithBtn = Array.from(doc.querySelectorAll('.novel-card')).find(c => c.querySelector('[data-action="quick-add"]'));
+    assert.ok(cardWithBtn, 'Active card with quick-add button should exist');
+    const btn = cardWithBtn.querySelector('[data-action="quick-add"]');
     btn.click();
 
     const cardsAfter = Array.from(doc.querySelectorAll('.novel-card')).map(c => c.dataset.id);
@@ -813,6 +813,36 @@ async function runTests() {
     const restoredCards = doc.querySelectorAll('.novel-card');
     assert.strictEqual(restoredCards.length, 1, 'Novel should be restored by Undo');
     assert.ok(restoredCards[0].textContent.includes('Reverend Insanity'));
+  });
+
+  // A24: Shelf quick-action "+1 Ch" hidden on completed novels
+  await test('A24', 'Quick +1 Ch action is hidden on Completed novels and visible on active ones', async () => {
+    const { window } = createDom();
+    const doc = window.document;
+
+    // Add a Reading novel
+    doc.getElementById('btn-add-novel-top').click();
+    doc.getElementById('form-title').value = 'Active Reading Novel';
+    doc.getElementById('novel-form').dispatchEvent(new window.Event('submit', { cancelable: true, bubbles: true }));
+
+    // Add a Completed novel
+    doc.getElementById('btn-add-novel-top').click();
+    doc.getElementById('form-title').value = 'Finished Story';
+    doc.querySelector('.status-pill-btn[data-status="Completed"]').click();
+    doc.getElementById('novel-form').dispatchEvent(new window.Event('submit', { cancelable: true, bubbles: true }));
+
+    const cards = Array.from(doc.querySelectorAll('.novel-card'));
+    const readingCard = cards.find(c => c.textContent.includes('Active Reading Novel'));
+    const completedCard = cards.find(c => c.textContent.includes('Finished Story'));
+
+    assert.ok(readingCard, 'Reading card should exist');
+    assert.ok(completedCard, 'Completed card should exist');
+
+    const readingPlusBtn = readingCard.querySelector('[data-action="quick-add"]');
+    const completedPlusBtn = completedCard.querySelector('[data-action="quick-add"]');
+
+    assert.ok(readingPlusBtn, 'Reading novel should have +1 Ch button');
+    assert.strictEqual(completedPlusBtn, null, 'Completed novel must NOT have +1 Ch button');
   });
 
   console.log('\n--- Test Summary ---');

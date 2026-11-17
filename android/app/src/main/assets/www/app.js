@@ -800,9 +800,30 @@
     if (srcEl && srcEl.textContent !== (novel.source || '')) {
       srcEl.textContent = novel.source || '';
     }
+
+    const isCompleted = (novel.status || '').toLowerCase() === 'completed';
     const quickBtn = card.querySelector('[data-action="quick-add"]');
-    if (quickBtn) {
-      quickBtn.setAttribute('aria-label', `Add 1 chapter to ${novel.title}`);
+    if (isCompleted) {
+      if (quickBtn) quickBtn.remove();
+    } else {
+      if (quickBtn) {
+        quickBtn.setAttribute('aria-label', `Add 1 chapter to ${novel.title}`);
+      } else {
+        const qaWrap = card.querySelector('.card-quick-actions');
+        if (qaWrap) {
+          const btn = document.createElement('button');
+          btn.className = 'btn-quick-chapter';
+          btn.dataset.action = 'quick-add';
+          btn.dataset.id = novel.id;
+          btn.setAttribute('aria-label', `Add 1 chapter to ${novel.title}`);
+          btn.textContent = '＋1 Ch';
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            incrementChapter(novel.id, 1);
+          });
+          qaWrap.appendChild(btn);
+        }
+      }
     }
 
     card.setAttribute('aria-label', `${novel.title} by ${authorText}, ${novel.status}`);
@@ -924,9 +945,13 @@
   function renderCardQuickActionsMarkup(novel) {
     const source = escHtml(novel.source || '');
     const title = escHtml(novel.title || 'novel');
+    const isCompleted = (novel.status || '').toLowerCase() === 'completed';
+    const btnHtml = isCompleted
+      ? ''
+      : `<button class="btn-quick-chapter" data-action="quick-add" data-id="${escHtml(novel.id)}" aria-label="Add 1 chapter to ${title}">＋1 Ch</button>`;
     return `<div class="card-quick-actions">
       <span class="card-source-label">${source}</span>
-      <button class="btn-quick-chapter" data-action="quick-add" data-id="${escHtml(novel.id)}" aria-label="Add 1 chapter to ${title}">＋1 Ch</button>
+      ${btnHtml}
     </div>`;
   }
 
