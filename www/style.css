@@ -749,15 +749,16 @@ body.ambient-paused::after {
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
-  padding: 7px 11px;
+  gap: 5px;
+  padding: 6px 9px;
   background: var(--glass-fill);
   border: 1px solid var(--glass-edge);
   border-radius: var(--r-full);
   color: var(--text-secondary);
   font-family: inherit;
-  font-size: .8rem;
+  font-size: clamp(.72rem, 3.2vw, .8rem);
   font-weight: 600;
+  letter-spacing: -0.01em;
   cursor: pointer;
   white-space: nowrap;
   box-shadow: var(--contour-edge);
@@ -766,8 +767,8 @@ body.ambient-paused::after {
 }
 
 #custom-select-btn-sort-filter {
-  flex: 1.25;
-  min-width: 144px;
+  flex: 1.35;
+  min-width: 140px;
 }
 
 .custom-select-btn:hover {
@@ -3786,6 +3787,19 @@ textarea {
   position: relative;
   transition: transform var(--t-fast) var(--ease-spring),
               background var(--t-fast) var(--ease-spring);
+}
+
+.calendar-day::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 44px;
+  min-height: 44px;
+  width: 100%;
+  height: 100%;
+  pointer-events: auto;
 }
 
 .calendar-day:active {

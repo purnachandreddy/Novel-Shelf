@@ -418,9 +418,13 @@ async function runTests() {
     assert.ok(sortSelect.classList.contains('sr-only-select'), 'Native sort-filter should have sr-only-select class');
     assert.ok(genreSelect.classList.contains('sr-only-select'), 'Native genre-filter should have sr-only-select class');
 
-    // 1. Open sort sheet via custom button
-    sortBtn.focus();
+    // 1. Open sort sheet via custom button, verifying active input is blurred first
+    const searchInput = doc.getElementById('search-input');
+    searchInput.focus();
+    assert.strictEqual(doc.activeElement, searchInput, 'Search input should initially be focused');
+
     sortBtn.click();
+    assert.notStrictEqual(doc.activeElement, searchInput, 'Active input must be blurred before popup opens');
 
     const sheetContainer = doc.getElementById('glass-sheet-container');
     const sheetEl = doc.getElementById('glass-sheet');
