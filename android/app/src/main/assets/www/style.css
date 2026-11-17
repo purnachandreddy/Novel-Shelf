@@ -149,11 +149,13 @@
   --z-toast: 200;
 
   /* Bottom Sheet Tokens */
+  --sheet-bg: var(--frost-sheen), var(--frost-tint);
+  --sheet-border: var(--border-medium);
   --sheet-radius: var(--r-xl);
   --sheet-handle-width: 36px;
   --sheet-handle-height: 4px;
   --sheet-row-height: 52px;
-  --sheet-max-height: 70vh;
+  --sheet-max-height: 75vh;
 
   /* Form & Native Controls Accent */
   accent-color: var(--amber);
@@ -3291,12 +3293,14 @@ textarea {
   max-width: 600px;
   margin: 0 auto;
   max-height: var(--sheet-max-height);
-  background: var(--frost-sheen), var(--frost-tint);
+  background: var(--sheet-bg);
   backdrop-filter: blur(var(--blur-lg)) saturate(160%);
   -webkit-backdrop-filter: blur(var(--blur-lg)) saturate(160%);
   border-top-left-radius: var(--sheet-radius);
   border-top-right-radius: var(--sheet-radius);
-  border-top: 1px solid var(--border-medium);
+  border-top: 1px solid var(--sheet-border);
+  border-left: 1px solid var(--border-subtle);
+  border-right: 1px solid var(--border-subtle);
   box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.6), var(--contour-edge);
   display: flex;
   flex-direction: column;
