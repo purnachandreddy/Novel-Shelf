@@ -20,6 +20,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsAnimationCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewClientCompat
@@ -32,6 +33,40 @@ class MainActivity : AppCompatActivity() {
     // ── File chooser (cover images + JSON restore) ──────────────────────────
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
     private var currentInsetsJs: String? = null
+    private var lastImeVisible: Boolean = false
+
+    private fun applyInsets(insets: WindowInsetsCompat) {
+        val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+        val isImeVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
+        val imeBottom = if (isImeVisible) insets.getInsets(WindowInsetsCompat.Type.ime()).bottom else 0
+        val density = resources.displayMetrics.density
+
+        binding.root.setPadding(0, 0, 0, imeBottom)
+        binding.root.requestLayout()
+
+        val topPx    = (bars.top / density).toInt()
+        val bottomPx = if (isImeVisible) 0 else (bars.bottom / density).toInt()
+        val leftPx   = (bars.left / density).toInt()
+        val rightPx  = (bars.right / density).toInt()
+
+        val js = """
+            document.documentElement.style.setProperty('--inset-top', '${topPx}px');
+            document.documentElement.style.setProperty('--inset-bottom', '${bottomPx}px');
+            document.documentElement.style.setProperty('--inset-left', '${leftPx}px');
+            document.documentElement.style.setProperty('--inset-right', '${rightPx}px');
+            document.documentElement.style.setProperty('--ime-height', '0px');
+            if (window.updateAppHeight) { window.updateAppHeight(); }
+        """.trimIndent().replace("\n", " ")
+
+        currentInsetsJs = js
+        binding.webView.evaluateJavascript(js, null)
+
+        // When keyboard transitions from visible to hidden, notify JS to drop focus
+        if (lastImeVisible && !isImeVisible) {
+            binding.webView.evaluateJavascript("if (window.onKeyboardHidden) { window.onKeyboardHidden(); } else if (document.activeElement && typeof document.activeElement.blur === 'function') { document.activeElement.blur(); }", null)
+        }
+        lastImeVisible = isImeVisible
+    }
 
     private val filePickerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -147,30 +182,29 @@ class MainActivity : AppCompatActivity() {
 
         // System Insets bridge: WebView draws edge-to-edge behind system bars & cutouts, passing insets to CSS variables
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
-            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
-            val ime  = insets.getInsets(WindowInsetsCompat.Type.ime())
-            val density = resources.displayMetrics.density
-            val isImeVisible = ime.bottom > 0
-            val imeBottomPadding = if (isImeVisible) ime.bottom else 0
-            binding.root.setPadding(0, 0, 0, imeBottomPadding)
-
-            val topPx    = (bars.top / density).toInt()
-            val bottomPx = if (isImeVisible) 0 else (bars.bottom / density).toInt()
-            val leftPx   = (bars.left / density).toInt()
-            val rightPx  = (bars.right / density).toInt()
-
-            val js = """
-                document.documentElement.style.setProperty('--inset-top', '${topPx}px');
-                document.documentElement.style.setProperty('--inset-bottom', '${bottomPx}px');
-                document.documentElement.style.setProperty('--inset-left', '${leftPx}px');
-                document.documentElement.style.setProperty('--inset-right', '${rightPx}px');
-                document.documentElement.style.setProperty('--ime-height', '0px');
-            """.trimIndent().replace("\n", " ")
-
-            currentInsetsJs = js
-            binding.webView.evaluateJavascript(js, null)
+            applyInsets(insets)
             insets
         }
+
+        ViewCompat.setWindowInsetsAnimationCallback(
+            binding.root,
+            object : WindowInsetsAnimationCompat.Callback(DISPATCH_MODE_STOP) {
+                override fun onProgress(
+                    insets: WindowInsetsCompat,
+                    runningAnimations: MutableList<WindowInsetsAnimationCompat>
+                ): WindowInsetsCompat {
+                    return insets
+                }
+
+                override fun onEnd(animation: WindowInsetsAnimationCompat) {
+                    super.onEnd(animation)
+                    val rootInsets = ViewCompat.getRootWindowInsets(binding.root)
+                    if (rootInsets != null) {
+                        applyInsets(rootInsets)
+                    }
+                }
+            }
+        )
         binding.root.requestApplyInsets()
 
         // Back navigation: JS manages screens, modals, and history; finish only when on root shelf
@@ -225,23 +259,12 @@ class MainActivity : AppCompatActivity() {
         webView.webViewClient = object : WebViewClientCompat() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
-                val js = currentInsetsJs ?: run {
-                    val rootInsets = ViewCompat.getRootWindowInsets(binding.root)
-                    if (rootInsets != null) {
-                        val bars = rootInsets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
-                        val ime  = rootInsets.getInsets(WindowInsetsCompat.Type.ime())
-                        val density = resources.displayMetrics.density
-                        val isImeVisible = ime.bottom > 0
-                        val imeBottomPadding = if (isImeVisible) ime.bottom else 0
-                        binding.root.setPadding(0, 0, 0, imeBottomPadding)
-                        val topPx    = (bars.top / density).toInt()
-                        val bottomPx = if (isImeVisible) 0 else (bars.bottom / density).toInt()
-                        val leftPx   = (bars.left / density).toInt()
-                        val rightPx  = (bars.right / density).toInt()
-                        "document.documentElement.style.setProperty('--inset-top', '${topPx}px'); document.documentElement.style.setProperty('--inset-bottom', '${bottomPx}px'); document.documentElement.style.setProperty('--inset-left', '${leftPx}px'); document.documentElement.style.setProperty('--inset-right', '${rightPx}px'); document.documentElement.style.setProperty('--ime-height', '0px');"
-                    } else null
+                val rootInsets = ViewCompat.getRootWindowInsets(binding.root)
+                if (rootInsets != null) {
+                    applyInsets(rootInsets)
+                } else {
+                    binding.root.requestApplyInsets()
                 }
-                js?.let { view?.evaluateJavascript(it, null) }
             }
 
             override fun shouldInterceptRequest(
@@ -319,6 +342,12 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         binding.webView.onResume()
+        val rootInsets = ViewCompat.getRootWindowInsets(binding.root)
+        if (rootInsets != null) {
+            applyInsets(rootInsets)
+        } else {
+            binding.root.requestApplyInsets()
+        }
     }
 
     override fun onPause() {

@@ -486,8 +486,55 @@
     });
   }
 
+  // --- Viewport Height Management (--app-height) ---
+  function updateAppHeight() {
+    const h = (typeof window !== 'undefined' && window.innerHeight)
+      ? window.innerHeight
+      : (document.documentElement ? document.documentElement.clientHeight : 800);
+    if (document.documentElement) {
+      document.documentElement.style.setProperty('--app-height', `${h}px`);
+    }
+  }
+  window.updateAppHeight = updateAppHeight;
+
+  // Run on load
+  updateAppHeight();
+
+  window.onKeyboardHidden = function() {
+    updateAppHeight();
+    if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+      document.activeElement.blur();
+    }
+  };
+
+  let prevInnerH = typeof window !== 'undefined' ? window.innerHeight : 800;
+  function handleResizeOrVisibility() {
+    updateAppHeight();
+    const newH = typeof window !== 'undefined' ? window.innerHeight : 800;
+    if (newH > prevInnerH + 150) {
+      if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+        document.activeElement.blur();
+      }
+    }
+    prevInnerH = newH;
+  }
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('resize', handleResizeOrVisibility);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleResizeOrVisibility);
+    }
+    window.addEventListener('focus', handleResizeOrVisibility);
+  }
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) handleResizeOrVisibility();
+    });
+  }
+
   // --- Initializer ---
   function init() {
+    updateAppHeight();
     loadLibrary();
     setupEventListeners();
     renderLibrary();

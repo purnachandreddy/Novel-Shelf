@@ -898,6 +898,45 @@ async function runTests() {
     assert.strictEqual(sciFiPill.classList.contains('active'), true);
   });
 
+  // A26: Simulated keyboard resize sequence (open height -> closed height) updates --app-height and blurs active field
+  await test('A26', 'Keyboard resize sequence updates --app-height, restores form height, and blurs active input on hide', async () => {
+    const { window } = createDom();
+    const doc = window.document;
+
+    // 1. Initial state (closed height: 800)
+    window.innerHeight = 800;
+    if (window.updateAppHeight) window.updateAppHeight();
+    assert.strictEqual(doc.documentElement.style.getPropertyValue('--app-height'), '800px');
+
+    // 2. Open form and focus notes field
+    doc.getElementById('btn-add-novel-top').click();
+    const formModal = doc.getElementById('modal-novel-form');
+    assert.strictEqual(formModal.style.display, 'flex');
+
+    const formNotes = doc.getElementById('form-notes');
+    formNotes.focus();
+    assert.strictEqual(doc.activeElement, formNotes);
+
+    // 3. Simulate keyboard opening: window.innerHeight shrinks to 503
+    window.innerHeight = 503;
+    window.dispatchEvent(new window.Event('resize'));
+    assert.strictEqual(doc.documentElement.style.getPropertyValue('--app-height'), '503px');
+    assert.strictEqual(doc.activeElement, formNotes, 'Field should stay focused while keyboard is open');
+
+    // 4. Simulate keyboard closing: window.innerHeight expands back to 800
+    window.innerHeight = 800;
+    window.dispatchEvent(new window.Event('resize'));
+    assert.strictEqual(doc.documentElement.style.getPropertyValue('--app-height'), '800px', '--app-height must restore to 800px');
+    assert.notStrictEqual(doc.activeElement, formNotes, 'Field must be blurred when keyboard closes');
+
+    // 5. Native onKeyboardHidden hook also works if called directly
+    formNotes.focus();
+    assert.strictEqual(doc.activeElement, formNotes);
+    window.onKeyboardHidden();
+    assert.notStrictEqual(doc.activeElement, formNotes, 'Field must blur when onKeyboardHidden hook fires');
+    assert.strictEqual(doc.documentElement.style.getPropertyValue('--app-height'), '800px');
+  });
+
   console.log('\n--- Test Summary ---');
   const passed = results.filter(r => r.status === 'PASS').length;
   const failed = results.filter(r => r.status === 'FAIL').length;

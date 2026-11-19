@@ -36,11 +36,12 @@
   --blur-lg: 24px;
 
   /* Frosted Dark Tokens (ColorOS 17 Living Flow) */
-  --frost-tint: rgba(14, 18, 28, 0.62);
+  --frost-tint: rgba(14, 18, 28, 0.72);
   --frost-tint-amber: rgba(245, 158, 11, 0.28);
   --frost-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.03));
   --frost-fallback: rgba(14, 18, 28, 0.88);
   --nav-clearance: calc(96px + var(--inset-bottom));
+  --app-height: 100vh;
 
   /* Header Tokens */
   --header-tint: rgba(11, 14, 20, 0.62);
@@ -153,7 +154,7 @@
   --popup-border: var(--border-medium);
   --popup-radius: var(--r-xl);
   --popup-row-height: 48px;
-  --popup-max-height: calc(100dvh - var(--inset-top) - var(--inset-bottom) - 32px);
+  --popup-max-height: calc(var(--app-height, 100vh) - var(--inset-top) - var(--inset-bottom) - 32px);
   --popup-scrim: rgba(0, 0, 0, 0.42);
 
   /* Backward Compatibility Sheet Aliases */
@@ -229,6 +230,7 @@
 }
 
 html {
+  height: var(--app-height, 100%);
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
 }
@@ -239,7 +241,8 @@ body {
   color: var(--text-primary);
   line-height: 1.5;
   overflow-x: hidden;
-  min-height: 100dvh;
+  height: var(--app-height, 100%);
+  min-height: var(--app-height, 100%);
   -webkit-overflow-scrolling: touch;
   user-select: none;
   -webkit-user-select: none;
@@ -337,7 +340,8 @@ body.ambient-paused::after {
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  height: var(--app-height, 100%);
+  min-height: var(--app-height, 100%);
 }
 
 /* ---- Header ---- */
@@ -2338,8 +2342,7 @@ select option {
   display: flex;
   flex-direction: column;
   height: 100%;
-  height: 100dvh;
-  max-height: 100dvh;
+  max-height: 100%;
   overflow: hidden;
   background: var(--surface-base) !important;
   width: 100%;
@@ -3051,7 +3054,7 @@ textarea {
 .details-page-view {
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  min-height: var(--app-height, 100%);
   background: var(--surface-base) !important;
   width: 100%;
 }
@@ -4014,7 +4017,7 @@ textarea {
   padding: 4px 12px;
   background: transparent;
   border: none;
-  color: rgba(255, 255, 255, 0.78);
+  color: rgba(255, 255, 255, 0.90);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
   cursor: pointer;
   border-radius: var(--r-full);
@@ -4028,7 +4031,7 @@ textarea {
 }
 
 .nav-tab-btn.active {
-  color: var(--amber-light);
+  color: #fde68a;
   font-weight: 700;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
 }
