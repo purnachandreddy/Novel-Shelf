@@ -1049,6 +1049,26 @@ async function runTests() {
     });
   });
 
+  // A30: Status Breakdown and Rating Distribution use standard stats-section-card glass card component
+  await test('A30', 'Status Breakdown and Rating Distribution sections use stats-section-card with icon and heading', async () => {
+    const { window } = createDom();
+    const doc = window.document;
+
+    const statusSec = doc.getElementById('section-status-breakdown');
+    const ratingSec = doc.getElementById('section-rating-distribution');
+
+    assert.ok(statusSec, 'section-status-breakdown must exist');
+    assert.ok(ratingSec, 'section-rating-distribution must exist');
+
+    assert.ok(statusSec.classList.contains('stats-section-card'), 'Status breakdown must use stats-section-card class');
+    assert.ok(ratingSec.classList.contains('stats-section-card'), 'Rating distribution must use stats-section-card class');
+
+    assert.ok(statusSec.querySelector('.stats-card-heading svg'), 'Status breakdown must contain icon');
+    assert.ok(statusSec.querySelector('.stats-card-heading h3'), 'Status breakdown must contain h3');
+    assert.ok(ratingSec.querySelector('.stats-card-heading svg'), 'Rating distribution must contain icon');
+    assert.ok(ratingSec.querySelector('.stats-card-heading h3'), 'Rating distribution must contain h3');
+  });
+
   console.log('\n--- Test Summary ---');
   const passed = results.filter(r => r.status === 'PASS').length;
   const failed = results.filter(r => r.status === 'FAIL').length;
