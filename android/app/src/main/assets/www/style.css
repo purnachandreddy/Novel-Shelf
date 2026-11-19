@@ -891,7 +891,7 @@ select option {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 10px 16px 4px 16px;
+  padding: 10px 0 4px 0;
 }
 
 /* ---- Status Tabs ---- */
@@ -976,7 +976,7 @@ select option {
 /* ---- Main Content ---- */
 .main-content {
   flex: 1;
-  padding: 14px calc(14px + var(--inset-right)) var(--nav-clearance) calc(14px + var(--inset-left));
+  padding: 14px calc(16px + var(--inset-right)) var(--nav-clearance) calc(16px + var(--inset-left));
 }
 
 @keyframes slideDown {

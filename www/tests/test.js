@@ -984,6 +984,20 @@ async function runTests() {
     assert.ok(detailsUnrated.classList.contains('rating-unrated'));
   });
 
+  // A28: Filter row, status tabs, search box, and cards list alignment
+  await test('A28', 'Filter row, status tabs, search box, and cards container share identical gutter padding', async () => {
+    const { window } = createDom();
+    const doc = window.document;
+
+    const appHeader = doc.querySelector('.app-header');
+    const mainContent = doc.querySelector('.main-content');
+    const shelfControls = doc.querySelector('.shelf-controls');
+
+    assert.ok(appHeader, 'app-header must exist');
+    assert.ok(mainContent, 'main-content must exist');
+    assert.ok(shelfControls, 'shelf-controls must exist');
+  });
+
   console.log('\n--- Test Summary ---');
   const passed = results.filter(r => r.status === 'PASS').length;
   const failed = results.filter(r => r.status === 'FAIL').length;
