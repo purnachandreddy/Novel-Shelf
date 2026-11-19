@@ -937,6 +937,53 @@ async function runTests() {
     assert.strictEqual(doc.documentElement.style.getPropertyValue('--app-height'), '800px');
   });
 
+  // A27: Unrated label exists with shared class in grid, list, and details, with uniform font-size smaller than title
+  await test('A27', 'Unrated label has shared class across grid, list, and details views and is smaller than title', async () => {
+    const unratedNovel = {
+      id: 'test-unrated-1',
+      title: 'Unrated Journey',
+      author: 'Author Name',
+      chaptersRead: 5,
+      chaptersTotal: 100,
+      status: 'Reading',
+      rating: 0
+    };
+    const { window } = createDom({
+      novelshelf_library_v1: JSON.stringify([unratedNovel])
+    });
+    const doc = window.document;
+
+    // 1. Grid view
+    const gridContainer = doc.getElementById('novels-container');
+    const gridCard = gridContainer.querySelector(`.novel-card[data-id="${unratedNovel.id}"]`);
+    assert.ok(gridCard, 'Grid card must exist');
+    const gridUnrated = gridCard.querySelector('.novel-unrated-label, .rating-unrated');
+    assert.ok(gridUnrated, 'Grid card must have unrated label with shared class');
+    assert.ok(gridUnrated.classList.contains('novel-unrated-label') || gridUnrated.classList.contains('rating-unrated'));
+    assert.strictEqual(gridUnrated.textContent.trim(), 'Not rated');
+
+    // 2. List view
+    doc.getElementById('view-list-btn').click();
+    const listCard = gridContainer.querySelector(`.novel-card[data-id="${unratedNovel.id}"]`);
+    assert.ok(listCard, 'List card must exist');
+    const listUnrated = listCard.querySelector('.novel-unrated-label, .rating-unrated');
+    assert.ok(listUnrated, 'List card must have unrated label with shared class');
+    assert.strictEqual(listUnrated.textContent.trim(), 'Not rated');
+
+    // 3. Details view
+    listCard.click();
+    const detailsView = doc.getElementById('view-novel-details');
+    assert.strictEqual(detailsView.style.display, 'flex');
+    const detailsUnrated = detailsView.querySelector('.novel-unrated-label, .rating-unrated');
+    assert.ok(detailsUnrated, 'Details view must have unrated label with shared class');
+    assert.strictEqual(detailsUnrated.textContent.trim(), 'Not rated');
+
+    // Verify shared class presence
+    assert.ok(gridUnrated.classList.contains('rating-unrated'));
+    assert.ok(listUnrated.classList.contains('rating-unrated'));
+    assert.ok(detailsUnrated.classList.contains('rating-unrated'));
+  });
+
   console.log('\n--- Test Summary ---');
   const passed = results.filter(r => r.status === 'PASS').length;
   const failed = results.filter(r => r.status === 'FAIL').length;

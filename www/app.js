@@ -798,10 +798,10 @@
     }
 
     // Rating
-    const starPill = card.querySelector('.star-rating-pill, .rating-unrated');
+    const starPill = card.querySelector('.star-rating-pill, .rating-unrated, .novel-unrated-label');
     if (starPill) {
       if (!novel.rating || novel.rating <= 0) {
-        starPill.className = 'rating-unrated';
+        starPill.className = 'novel-unrated-label rating-unrated';
         starPill.textContent = 'Not rated';
       } else {
         starPill.className = 'star-rating-pill';
@@ -967,7 +967,7 @@
 
   function renderCardStarsMarkup(novel) {
     if (!novel.rating || novel.rating <= 0) {
-      return `<span class="rating-unrated">Not rated</span>`;
+      return `<span class="novel-unrated-label rating-unrated">Not rated</span>`;
     }
     const ratingDisplay = novel.rating.toFixed(1) + ' ★';
     const starsHtml = renderStarsDisplay(novel.rating);
@@ -1382,7 +1382,7 @@
     const statusClass = getStatusClass(novel.status);
     const ratingHtml = (novel.rating && novel.rating > 0)
       ? `<span class="detail-stars">${renderStarsDisplay(novel.rating)}<span class="detail-rating-num">${novel.rating.toFixed(1)}</span></span>`
-      : `<span class="rating-unrated detail-unrated">Not rated</span>`;
+      : `<span class="novel-unrated-label rating-unrated detail-unrated">Not rated</span>`;
 
     let coverHtml;
     if (novel.cover) {

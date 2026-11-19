@@ -2089,15 +2089,21 @@ select option {
   color: var(--amber-light);
 }
 
+.novel-unrated-label,
 .rating-unrated,
 .detail-unrated {
-  font-size: .8rem;
+  font-family: inherit;
+  font-size: 0.75rem;
   color: var(--text-muted);
   font-weight: 500;
-  height: 26px;
+  line-height: 1.2;
+  height: 20px;
   display: inline-flex;
   align-items: center;
   user-select: none;
+  background: transparent;
+  border: none;
+  padding: 0;
 }
 
 .genre-pill {
