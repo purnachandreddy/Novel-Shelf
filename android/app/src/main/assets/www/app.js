@@ -374,7 +374,11 @@
       }
 
       if (confirmTitle) confirmTitle.textContent = title;
-      confirmMessage.textContent = message;
+      if (message && message.includes('<')) {
+        confirmMessage.innerHTML = message;
+      } else {
+        confirmMessage.textContent = message;
+      }
       btnConfirmYes.textContent = yesLabel;
       btnConfirmNo.textContent = noLabel;
       confirmDialog.style.display = 'flex';
@@ -1416,6 +1420,13 @@
       novel.finished ? 'Finished: ' + escHtml(formatDisplayDate(novel.finished)) : null
     ].filter(Boolean).join('<br>') || '—';
 
+    const isCompleted = novel.status === 'Completed';
+    const progressButtonsHtml = isCompleted
+      ? (/^https?:\/\//i.test(novel.link || '') ? `<a class="btn btn-primary btn-sm detail-read-btn" href="${escHtml(novel.link)}" target="_blank" rel="noopener noreferrer">Read ↗</a>` : '')
+      : `<button class="btn btn-secondary btn-sm" id="btn-detail-add-1">＋1 Chapter</button>
+         <button class="btn btn-secondary btn-sm" id="btn-detail-add-5">＋5 Chapters</button>
+         ${/^https?:\/\//i.test(novel.link || '') ? `<a class="btn btn-primary btn-sm detail-read-btn" href="${escHtml(novel.link)}" target="_blank" rel="noopener noreferrer">Read ↗</a>` : ''}`;
+
     detailBodyContent.innerHTML = `
       <div class="detail-hero">
         <div class="detail-cover-box">${coverHtml}</div>
@@ -1427,20 +1438,18 @@
             ${ratingHtml}
             ${novel.genre ? `<span class="genre-pill">${escHtml(novel.genre)}</span>` : ''}
           </div>
-          <div class="detail-progress-card">
-            <div class="detail-progress-header">
-              <span>Chapter Progress</span>
-              <strong>${read}${total ? ' / ' + total + ' (' + percent + '%)' : ' chapters'}</strong>
-            </div>
-            <div class="progress-track" style="height:8px;margin-top:6px">
-              <div class="progress-fill" style="width: ${total ? percent : 0}%"></div>
-            </div>
-            <div class="detail-progress-buttons">
-              <button class="btn btn-secondary btn-sm" id="btn-detail-add-1">＋1 Chapter</button>
-              <button class="btn btn-secondary btn-sm" id="btn-detail-add-5">＋5 Chapters</button>
-              ${/^https?:\/\//i.test(novel.link || '') ? `<a class="btn btn-primary btn-sm detail-read-btn" href="${escHtml(novel.link)}" target="_blank" rel="noopener noreferrer">Read ↗</a>` : ''}
-            </div>
-          </div>
+        </div>
+      </div>
+      <div class="detail-progress-card">
+        <div class="detail-progress-header">
+          <span class="detail-progress-label">Chapter Progress</span>
+          <strong class="detail-progress-val">${read}${total ? ' / ' + total + ' (' + percent + '%)' : ' chapters'}</strong>
+        </div>
+        <div class="progress-track" style="height:8px;margin-top:6px">
+          <div class="progress-fill" style="width: ${total ? percent : 0}%"></div>
+        </div>
+        <div class="detail-progress-buttons">
+          ${progressButtonsHtml}
         </div>
       </div>
       <div class="detail-meta-grid">
@@ -1457,8 +1466,33 @@
       ${novel.notes ? `<div class="detail-notes-card"><h4>Notes &amp; Review</h4><div class="detail-notes-content">${escHtml(novel.notes)}</div></div>` : ''}
     `;
 
-    document.getElementById('btn-detail-add-1').addEventListener('click', () => incrementChapter(novel.id, 1));
-    document.getElementById('btn-detail-add-5').addEventListener('click', () => incrementChapter(novel.id, 5));
+    const btnAdd1 = document.getElementById('btn-detail-add-1');
+    if (btnAdd1) btnAdd1.addEventListener('click', () => incrementChapter(novel.id, 1));
+    const btnAdd5 = document.getElementById('btn-detail-add-5');
+    if (btnAdd5) btnAdd5.addEventListener('click', () => incrementChapter(novel.id, 5));
+
+    if (detailHeaderTitle) {
+      detailHeaderTitle.textContent = novel.title;
+      const heroTitle = detailBodyContent.querySelector('.detail-title');
+      if (typeof IntersectionObserver !== 'undefined' && heroTitle) {
+        detailHeaderTitle.classList.add('title-fade-hidden');
+        if (window._detailTitleObserver) {
+          window._detailTitleObserver.disconnect();
+        }
+        window._detailTitleObserver = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              detailHeaderTitle.classList.add('title-fade-hidden');
+            } else {
+              detailHeaderTitle.classList.remove('title-fade-hidden');
+            }
+          });
+        }, { threshold: 0.1 });
+        window._detailTitleObserver.observe(heroTitle);
+      } else {
+        detailHeaderTitle.classList.remove('title-fade-hidden');
+      }
+    }
   }
 
   // --- Add / Edit Modal ---
@@ -1766,7 +1800,7 @@
     const novel = library[novelIndex];
 
     const confirmed = await showConfirm(
-      `Delete "${novel.title}"? This cannot be undone.`,
+      `<strong>${escHtml(novel.title)}</strong><div class="confirm-subtext">This can't be undone.</div>`,
       'Delete',
       'Cancel',
       'Delete novel?'

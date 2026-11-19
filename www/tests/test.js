@@ -1069,6 +1069,76 @@ async function runTests() {
     assert.ok(ratingSec.querySelector('.stats-card-heading h3'), 'Rating distribution must contain h3');
   });
 
+  // A31: Details page centered badges, no +1/+5 on Completed, single mention of title in delete dialog
+  await test('A31', 'Details page centered badge row, no +1/+5 on Completed, and single title mention in delete confirm', async () => {
+    const testNovels = [
+      {
+        id: 'completed-novel-1',
+        title: 'Lord of the Mysteries',
+        author: 'Cuttlefish',
+        chaptersRead: 1432,
+        chaptersTotal: 1432,
+        status: 'Completed',
+        rating: 5.0
+      },
+      {
+        id: 'unrated-reading-1',
+        title: 'Omniscient Reader',
+        author: 'Sing Shong',
+        chaptersRead: 200,
+        chaptersTotal: 551,
+        status: 'Reading',
+        rating: 0
+      }
+    ];
+
+    const { window } = createDom({
+      novelshelf_library_v1: JSON.stringify(testNovels)
+    });
+    const doc = window.document;
+
+    // 1. Open completed novel details: assert no +1 / +5 buttons exist
+    const completedCard = doc.querySelector(`.novel-card[data-id="completed-novel-1"]`);
+    assert.ok(completedCard, 'Completed card must exist');
+    completedCard.click();
+
+    assert.strictEqual(doc.getElementById('btn-detail-add-1'), null, 'Completed novel must NOT have +1 Chapter button in details');
+    assert.strictEqual(doc.getElementById('btn-detail-add-5'), null, 'Completed novel must NOT have +5 Chapters button in details');
+
+    const badgeRow = doc.querySelector('.detail-badges-row');
+    assert.ok(badgeRow, 'detail-badges-row must exist');
+
+    // 2. Open delete confirm dialog: assert title is "Delete novel?" and title is mentioned only once in the message
+    doc.getElementById('btn-detail-delete').click();
+    const confirmTitle = doc.getElementById('confirm-title');
+    const confirmMsg = doc.getElementById('confirm-message');
+
+    assert.strictEqual(confirmTitle.textContent, 'Delete novel?');
+    // Ensure title is mentioned, but duplicate "Delete ..." is not in message
+    assert.ok(confirmMsg.textContent.includes('Lord of the Mysteries'));
+    assert.ok(!confirmMsg.textContent.startsWith('Delete "Lord of the Mysteries"?'));
+    assert.ok(confirmMsg.textContent.includes("This can't be undone."));
+
+    // Cancel delete dialog and return
+    doc.getElementById('btn-confirm-no').click();
+    doc.getElementById('btn-back-shelf').click();
+
+    // 3. Open unrated reading novel: assert badge row exists and has unrated label
+    const unratedCard = doc.querySelector(`.novel-card[data-id="unrated-reading-1"]`);
+    assert.ok(unratedCard, 'Unrated card must exist');
+    unratedCard.click();
+
+    const unratedBadgeRow = doc.querySelector('.detail-badges-row');
+    assert.ok(unratedBadgeRow, 'Unrated detail-badges-row must exist');
+    const unratedLabel = unratedBadgeRow.querySelector('.rating-unrated');
+    assert.ok(unratedLabel, 'Unrated label must exist in badge row');
+    assert.strictEqual(unratedLabel.textContent.trim(), 'Not rated');
+
+    // On reading novel, +1 and +5 buttons must exist
+    assert.ok(doc.getElementById('btn-detail-add-1'), 'Reading novel MUST have +1 Chapter button in details');
+    assert.ok(doc.getElementById('btn-detail-add-5'), 'Reading novel MUST have +5 Chapters button in details');
+  });
+
   console.log('\n--- Test Summary ---');
   const passed = results.filter(r => r.status === 'PASS').length;
   const failed = results.filter(r => r.status === 'FAIL').length;
