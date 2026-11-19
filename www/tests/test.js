@@ -5,6 +5,7 @@ const assert = require('assert');
 
 const rawHtml = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
 const cleanHtml = rawHtml.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+const statsCalcJs = fs.readFileSync(path.resolve(__dirname, '../stats-calculator.js'), 'utf8');
 const sheetJs = fs.readFileSync(path.resolve(__dirname, '../sheet.js'), 'utf8');
 const js = fs.readFileSync(path.resolve(__dirname, '../app.js'), 'utf8');
 
@@ -44,6 +45,7 @@ function createDom(initialStorage = {}) {
   };
 
   // Evaluate scripts in order
+  window.eval(statsCalcJs);
   window.eval(sheetJs);
   window.eval(js);
   return { dom, window };
@@ -996,6 +998,55 @@ async function runTests() {
     assert.ok(appHeader, 'app-header must exist');
     assert.ok(mainContent, 'main-content must exist');
     assert.ok(shelfControls, 'shelf-controls must exist');
+  });
+
+  // A29: Currently Reading row structure (separate block elements for title and chapter)
+  await test('A29', 'Stats Currently Reading rows have separate block elements for title and chapter line', async () => {
+    const readingNovels = [
+      {
+        id: 'reading-1',
+        title: 'Shadow Slave',
+        author: 'Guiltythree',
+        chaptersRead: 982,
+        chaptersTotal: 2396,
+        status: 'Reading',
+        startedDate: '2026-01-01',
+        lastUpdatedDate: '2026-11-18'
+      },
+      {
+        id: 'reading-2',
+        title: 'Lord of the Mysteries',
+        author: 'Cuttlefish',
+        chaptersRead: 450,
+        chaptersTotal: 1432,
+        status: 'Reading',
+        startedDate: '2026-02-01',
+        lastUpdatedDate: '2026-10-01'
+      }
+    ];
+    const { window } = createDom({
+      novelshelf_library_v1: JSON.stringify(readingNovels)
+    });
+    const doc = window.document;
+
+    // Switch to stats view
+    doc.getElementById('nav-tab-stats').click();
+    const progressList = doc.getElementById('reading-progress-list');
+    assert.ok(progressList, 'reading-progress-list must exist');
+
+    const items = progressList.querySelectorAll('.reading-progress-item');
+    assert.strictEqual(items.length, 2, 'Must render 2 currently reading items');
+
+    items.forEach((item, idx) => {
+      const titleEl = item.querySelector('.reading-item-title');
+      const chEl = item.querySelector('.reading-item-ch');
+      assert.ok(titleEl, `Item ${idx} must have separate .reading-item-title element`);
+      assert.ok(chEl, `Item ${idx} must have separate .reading-item-ch element`);
+      assert.notStrictEqual(titleEl.parentElement, chEl, 'Title must not be nested in chapter line');
+      assert.notStrictEqual(chEl.parentElement, titleEl, 'Chapter line must not be nested in title');
+      // They should be sibling elements in the left column
+      assert.strictEqual(titleEl.parentElement, chEl.parentElement, 'Title and chapter must be sibling blocks in the left column');
+    });
   });
 
   console.log('\n--- Test Summary ---');

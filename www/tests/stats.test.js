@@ -271,7 +271,7 @@ it('computeStats: calculates finish estimate using novel own pace when daysReadi
   assert.notStrictEqual(ownPace.estimatedFinish, null);
   assert.strictEqual(ownPace.estimatedFinish.daysLeft, 26);
   assert.strictEqual(ownPace.estimatedFinish.targetDateFormatted, 'Dec 10');
-  assert.strictEqual(ownPace.estimatedFinish.paceBasisLabel, "at this novel's pace");
+  assert.strictEqual(ownPace.estimatedFinish.paceBasisLabel, "this novel's pace");
   assert.strictEqual(ownPace.estimatedFinish.text, '~26 days left (around Dec 10)');
 });
 
@@ -301,7 +301,7 @@ it('computeStats: falls back to overall usual pace when novel daysReading < 3', 
   assert.notStrictEqual(usualPace.estimatedFinish, null);
   assert.strictEqual(usualPace.estimatedFinish.daysLeft, 10);
   assert.strictEqual(usualPace.estimatedFinish.targetDateFormatted, 'Nov 24');
-  assert.strictEqual(usualPace.estimatedFinish.paceBasisLabel, 'at your usual pace');
+  assert.strictEqual(usualPace.estimatedFinish.paceBasisLabel, "your usual pace");
   assert.strictEqual(usualPace.estimatedFinish.text, '~10 days left (around Nov 24)');
 });
 
@@ -332,7 +332,7 @@ it('computeStats: shows stale messaging when Reading novel has not been updated 
   assert.strictEqual(stale.estimatedFinish.isStale, true);
   assert.strictEqual(stale.estimatedFinish.daysLeft, null);
   assert.strictEqual(stale.estimatedFinish.targetDateFormatted, null);
-  assert.strictEqual(stale.estimatedFinish.text, 'Update your progress for an estimate');
+  assert.strictEqual(stale.estimatedFinish.text, 'Update progress for an estimate');
 });
 
 it('computeStats: caps finish estimate text at 1+ year left when daysLeft > 365', () => {

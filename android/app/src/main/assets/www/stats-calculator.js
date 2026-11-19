@@ -321,8 +321,8 @@
               targetDateFormatted: null,
               isStale: true,
               daysSinceUpdate,
-              paceBasisLabel: 'Update your progress for an estimate',
-              text: 'Update your progress for an estimate'
+              paceBasisLabel: 'Update progress for an estimate',
+              text: 'Update progress for an estimate'
             };
           } else {
             let pace = 0;
@@ -330,10 +330,10 @@
 
             if (daysReading >= 3 && read > 0 && daysSinceUpdate < 14) {
               pace = read / daysReading;
-              paceBasisLabel = "at this novel's pace";
+              paceBasisLabel = "this novel's pace";
             } else if (allTimeOverallPace > 0) {
               pace = allTimeOverallPace;
-              paceBasisLabel = 'at your usual pace';
+              paceBasisLabel = "your usual pace";
             }
 
             if (pace > 0) {

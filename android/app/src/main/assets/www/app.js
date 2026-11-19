@@ -2062,15 +2062,13 @@
           }
 
           item.innerHTML = `
-            <div class="reading-item-main">
-              <div class="reading-row-line1">
-                <span class="reading-item-title">${escHtml(n.title)}</span>
-                <span class="reading-item-ch">Ch. ${n.chaptersRead}${totalStr}</span>
-              </div>
+            <div class="reading-item-col-left">
+              <div class="reading-item-title">${escHtml(n.title)}</div>
+              <div class="reading-item-ch">Ch. ${n.chaptersRead}${totalStr}</div>
               ${estimateHtml}
               ${metaHtml}
             </div>
-            <div class="reading-item-badge-wrap">
+            <div class="reading-item-col-right reading-item-badge-wrap">
               <span class="reading-badge-days">${n.daysReading}d reading</span>
               ${staleTag}
             </div>
