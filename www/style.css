@@ -202,26 +202,39 @@
   margin: 0;
   padding: 0;
   -webkit-tap-highlight-color: transparent;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
 }
 
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
+html,
+body,
+.app-container,
+.main-content,
+.details-page-view,
+.details-page-body,
+.form-page-view,
+.form-scroll-body {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
 }
 
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.16);
-  border-radius: 9999px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.28);
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+.app-container::-webkit-scrollbar,
+.main-content::-webkit-scrollbar,
+.details-page-view::-webkit-scrollbar,
+.details-page-body::-webkit-scrollbar,
+.form-page-view::-webkit-scrollbar,
+.form-scroll-body::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 :focus-visible {

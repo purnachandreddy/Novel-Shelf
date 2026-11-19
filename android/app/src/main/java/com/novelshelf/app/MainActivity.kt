@@ -250,6 +250,8 @@ class MainActivity : AppCompatActivity() {
         settings.setNeedInitialFocus(false)
 
         webView.isScrollbarFadingEnabled = true
+        webView.isVerticalScrollBarEnabled = false
+        webView.isHorizontalScrollBarEnabled = false
         webView.overScrollMode = WebView.OVER_SCROLL_NEVER
         webView.isHapticFeedbackEnabled = true
 
