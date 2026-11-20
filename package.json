@@ -2,7 +2,7 @@
   "name": "tracker",
   "version": "1.0.0",
   "description": "A fast, lightweight, dark-glass novel tracking app for Android powered by an optimized WebView with glass design.",
-  "main": "index.js",
+  "main": "www/app.js",
   "directories": {
     "doc": "docs"
   },
