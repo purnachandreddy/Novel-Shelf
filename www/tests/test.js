@@ -908,43 +908,42 @@ async function runTests() {
     assert.strictEqual(sciFiPill.classList.contains('active'), true);
   });
 
-  // A26: Simulated keyboard resize sequence (open height -> closed height) updates --app-height and blurs active field
-  await test('A26', 'Keyboard resize sequence updates --app-height, restores form height, and blurs active input on hide', async () => {
+  // A26: Keyboard inset mechanism --kb applies only while text-entry element is focused, and resets to 0 on focusout
+  await test('A26', 'Keyboard inset --kb applies only while text-entry element is focused, and resets to 0 on focusout', async () => {
     const { window } = createDom();
     const doc = window.document;
 
-    // 1. Initial state (closed height: 800)
-    window.innerHeight = 800;
-    if (window.updateAppHeight) window.updateAppHeight();
-    assert.strictEqual(doc.documentElement.style.getPropertyValue('--app-height'), '800px');
+    // Set initial system insets
+    window.setSystemInsets(40, 24, 0, 0);
+    assert.strictEqual(doc.documentElement.style.getPropertyValue('--inset-bottom'), '24px');
+    assert.strictEqual(doc.documentElement.style.getPropertyValue('--kb'), '0px');
 
-    // 2. Open form and focus notes field
+    // 1. Open form
     doc.getElementById('btn-add-novel-top').click();
     const formModal = doc.getElementById('modal-novel-form');
     assert.strictEqual(formModal.style.display, 'flex');
 
-    const formNotes = doc.getElementById('form-notes');
-    formNotes.focus();
-    assert.strictEqual(doc.activeElement, formNotes);
+    const formTitle = doc.getElementById('form-title');
 
-    // 3. Simulate keyboard opening: window.innerHeight shrinks to 503
-    window.innerHeight = 503;
-    window.dispatchEvent(new window.Event('resize'));
-    assert.strictEqual(doc.documentElement.style.getPropertyValue('--app-height'), '503px');
-    assert.strictEqual(doc.activeElement, formNotes, 'Field should stay focused while keyboard is open');
+    // 2. Focus input and call setKeyboardInset with positive value (e.g. 320)
+    formTitle.focus();
+    formTitle.dispatchEvent(new window.Event('focusin', { bubbles: true }));
+    window.setKeyboardInset(320);
 
-    // 4. Simulate keyboard closing: window.innerHeight expands back to 800
-    window.innerHeight = 800;
-    window.dispatchEvent(new window.Event('resize'));
-    assert.strictEqual(doc.documentElement.style.getPropertyValue('--app-height'), '800px', '--app-height must restore to 800px');
-    assert.notStrictEqual(doc.activeElement, formNotes, 'Field must be blurred when keyboard closes');
+    // Rule 1: --kb is 320px while text-entry element has focus
+    assert.strictEqual(doc.documentElement.style.getPropertyValue('--kb'), '320px', '--kb must equal 320px when input focused');
+    // Rule 4: --inset-bottom is 0 while --kb > 0
+    assert.strictEqual(doc.documentElement.style.getPropertyValue('--inset-bottom'), '0px', '--inset-bottom must be 0 while --kb > 0');
 
-    // 5. Native onKeyboardHidden hook also works if called directly
-    formNotes.focus();
-    assert.strictEqual(doc.activeElement, formNotes);
-    window.onKeyboardHidden();
-    assert.notStrictEqual(doc.activeElement, formNotes, 'Field must blur when onKeyboardHidden hook fires');
-    assert.strictEqual(doc.documentElement.style.getPropertyValue('--app-height'), '800px');
+    // Rule 3: On focusout, after 120ms, if no text element has focus, --kb is forced to 0 regardless of whether setKeyboardInset(0) was called
+    formTitle.blur();
+    formTitle.dispatchEvent(new window.Event('focusout', { bubbles: true }));
+
+    // Wait for the 120ms debounce (within 200ms)
+    await new Promise(resolve => setTimeout(resolve, 150));
+
+    assert.strictEqual(doc.documentElement.style.getPropertyValue('--kb'), '0px', '--kb must reset to 0px on focusout even if native setKeyboardInset(0) was missed');
+    assert.strictEqual(doc.documentElement.style.getPropertyValue('--inset-bottom'), '24px', '--inset-bottom must restore to system insets');
   });
 
   // A27: Unrated label exists with shared class in grid, list, and details, with uniform font-size smaller than title
@@ -1186,8 +1185,8 @@ async function runTests() {
     assert.match(buildStamp.textContent, /^v\d+\.\d+\.\d+\s*\(\d+\)/, 'Build stamp must display version and version code');
   });
 
-  // A34: Form screen fills viewport with fixed inset 0 and form-scroll-body has overflow-y: auto for internal scrolling
-  await test('A34', 'Form screen fills viewport with fixed inset 0 and form-scroll-body has overflow-y: auto for internal scrolling', async () => {
+  // A34: Form screen fills viewport with bottom tied to --kb and form-scroll-body has overflow-y: auto
+  await test('A34', 'Form screen fills viewport with bottom tied to --kb and form-scroll-body has overflow-y: auto for internal scrolling', async () => {
     const { window } = createDom();
     const doc = window.document;
 
@@ -1199,36 +1198,40 @@ async function runTests() {
     assert.ok(scrollBody, 'Form scroll body must exist');
 
     assert.match(css, /\.form-page-view\s*\{[^}]*position:\s*fixed/i, '.form-page-view must use position: fixed');
-    assert.match(css, /\.form-page-view\s*\{[^}]*inset:\s*0/i, '.form-page-view must use inset: 0');
+    assert.match(css, /\.form-page-view\s*\{[^}]*bottom:\s*var\(--kb/i, '.form-page-view must have bottom: var(--kb, 0px)');
     assert.doesNotMatch(css, /\.form-page-view\s*\{[^}]*(?<!-)\bheight:\s*var/i, '.form-page-view must not derive height from --app-height');
     assert.match(css, /\.form-scroll-body[^{]*\{[^}]*overflow-y:\s*auto/i, '.form-scroll-body must have overflow-y: auto');
+    assert.match(css, /\.form-scroll-body[^{]*\{[^}]*scroll-padding-bottom:\s*16px/i, '.form-scroll-body must have scroll-padding-bottom: 16px');
   });
 
-  // A35: Form action bar stays docked at bottom without parent height dependency and watchdog re-evaluates
-  await test('A35', 'Form screen has position: fixed inset 0 without parent height dependency, action bar stays docked, and watchdog handles focusout', async () => {
+  // A35: Form action bar stays docked at bottom without parent height dependency and form ends at --kb when open
+  await test('A35', 'Form action bar stays docked at bottom without parent height dependency and form ends at --kb when open', async () => {
     const { window } = createDom();
     const doc = window.document;
+
+    window.innerHeight = 892;
+    window.setSystemInsets(40, 24, 0, 0);
 
     doc.getElementById('btn-add-novel-top').click();
     const formModal = doc.getElementById('modal-novel-form');
     assert.strictEqual(formModal.style.display, 'flex');
-
-    // Simulate keyboard open and close resize sequence
-    window.innerHeight = 450;
-    window.dispatchEvent(new window.Event('resize'));
-    if (window.onKeyboardHidden) window.onKeyboardHidden();
-
-    window.innerHeight = 892;
-    window.dispatchEvent(new window.Event('resize'));
-
-    // Trigger watchdog
-    if (window.runKeyboardWatchdog) window.runKeyboardWatchdog();
 
     const actionBar = formModal.querySelector('.form-actions-bottom');
     assert.ok(actionBar, 'Form action bar must exist');
     assert.match(css, /\.form-actions-bottom\s*\{[^}]*flex:\s*none/i, 'Action bar must have flex: none');
     assert.match(css, /\.form-actions-bottom\s*\{[^}]*position:\s*static/i, 'Action bar must have position: static');
     assert.match(css, /\.form-actions-bottom\s*\{[^}]*padding:[^;]*var\(--inset-bottom\)/i, 'Action bar must pad for bottom insets');
+
+    // When --kb is 0, verify --kb is 0
+    assert.strictEqual(doc.documentElement.style.getPropertyValue('--kb'), '0px');
+
+    // Focus input and simulate keyboard
+    const formTitle = doc.getElementById('form-title');
+    formTitle.focus();
+    formTitle.dispatchEvent(new window.Event('focusin', { bubbles: true }));
+    window.setKeyboardInset(350);
+
+    assert.strictEqual(doc.documentElement.style.getPropertyValue('--kb'), '350px');
   });
 
   console.log('\n--- Test Summary ---');

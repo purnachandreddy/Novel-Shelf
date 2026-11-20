@@ -538,7 +538,10 @@
       `visualViewport.height: ${vvH}px\n` +
       `documentElement.clientHeight: ${clientH}px\n` +
       `--app-height: ${appH}\n` +
+      `--kb: ${currentKb}px\n` +
       `--inset-bottom: ${insetBottom}\n` +
+      `native webView.height: ${nativeMetrics.webViewHeight}px\n` +
+      `native binding.root paddingBottom: ${nativeMetrics.rootPaddingBottom}px\n` +
       `activeScreen: #${activeScreenId} (${activeScreenH})\n` +
       `actionBar: ${barRectStr}\n` +
       `activeElement: ${activeElStr}\n\n` +
@@ -559,6 +562,73 @@
   }
   window.toggleDebugOverlay = toggleDebugOverlay;
 
+  let nativeMetrics = { webViewHeight: 'N/A', rootPaddingBottom: 'N/A' };
+  window.setNativeMetrics = function(wvH, padBottom) {
+    nativeMetrics = { webViewHeight: wvH, rootPaddingBottom: padBottom };
+    updateDebugOverlay();
+  };
+
+  // --- Insets & Keyboard (--kb) State Management ---
+  let lastNativeKeyboardInset = 0;
+  let systemInsets = { top: 0, bottom: 0, left: 0, right: 0 };
+  let currentKb = 0;
+  let focusoutTimer = null;
+
+  function isTextEntryElement(el) {
+    if (!el) return false;
+    const tag = el.tagName;
+    if (tag === 'INPUT') {
+      const type = (el.type || 'text').toLowerCase();
+      return !['button', 'checkbox', 'file', 'hidden', 'image', 'radio', 'range', 'reset', 'submit'].includes(type);
+    }
+    if (tag === 'TEXTAREA') return true;
+    if (el.isContentEditable && el.isContentEditable !== 'false') return true;
+    return false;
+  }
+
+  function applyKeyboardAndInsets(kbValue) {
+    const hasFocusedText = isTextEntryElement(document.activeElement);
+    const effectiveKb = hasFocusedText ? Math.max(0, kbValue) : 0;
+    currentKb = effectiveKb;
+
+    if (document.documentElement) {
+      document.documentElement.style.setProperty('--kb', `${effectiveKb}px`);
+      // Rule 4: --inset-bottom is the system-bar inset when --kb is 0, and 0 while --kb > 0
+      const effectiveInsetBottom = effectiveKb > 0 ? 0 : systemInsets.bottom;
+      document.documentElement.style.setProperty('--inset-bottom', `${effectiveInsetBottom}px`);
+    }
+    updateDebugOverlay();
+  }
+
+  window.setKeyboardInset = function(imeBottomCssPx) {
+    lastNativeKeyboardInset = typeof imeBottomCssPx === 'number' ? imeBottomCssPx : (parseInt(imeBottomCssPx, 10) || 0);
+    applyKeyboardAndInsets(lastNativeKeyboardInset);
+  };
+
+  window.setSystemInsets = function(top, bottom, left, right) {
+    systemInsets = {
+      top: typeof top === 'number' ? top : (parseInt(top, 10) || 0),
+      bottom: typeof bottom === 'number' ? bottom : (parseInt(bottom, 10) || 0),
+      left: typeof left === 'number' ? left : (parseInt(left, 10) || 0),
+      right: typeof right === 'number' ? right : (parseInt(right, 10) || 0)
+    };
+    if (document.documentElement) {
+      document.documentElement.style.setProperty('--inset-top', `${systemInsets.top}px`);
+      document.documentElement.style.setProperty('--inset-left', `${systemInsets.left}px`);
+      document.documentElement.style.setProperty('--inset-right', `${systemInsets.right}px`);
+    }
+    applyKeyboardAndInsets(currentKb > 0 ? lastNativeKeyboardInset : 0);
+  };
+
+  function resetKeyboardInset() {
+    if (focusoutTimer) {
+      clearTimeout(focusoutTimer);
+      focusoutTimer = null;
+    }
+    applyKeyboardAndInsets(0);
+  }
+  window.resetKeyboardInset = resetKeyboardInset;
+
   function updateAppHeight() {
     const h = (typeof window !== 'undefined' && window.innerHeight)
       ? window.innerHeight
@@ -573,45 +643,8 @@
   // Run on load
   updateAppHeight();
 
-  window.onKeyboardHidden = function() {
-    logDebugEvent('onKeyboardHidden call');
-    updateAppHeight();
-    if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
-      document.activeElement.blur();
-    }
-    updateDebugOverlay();
-  };
-
-  let watchdogTimer = null;
-  function runKeyboardWatchdog() {
-    if (watchdogTimer) clearTimeout(watchdogTimer);
-    watchdogTimer = setTimeout(() => {
-      const active = document.activeElement;
-      const isInputFocused = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || (active.isContentEditable && active.isContentEditable !== 'false'));
-      if (!isInputFocused) {
-        const formEl = document.getElementById('modal-novel-form');
-        if (formEl && formEl.style.display !== 'none') {
-          // Clear any stale keyboard state and force reflow
-          void document.documentElement.offsetHeight;
-          updateAppHeight();
-          updateDebugOverlay();
-        }
-      }
-    }, 150);
-  }
-  window.runKeyboardWatchdog = runKeyboardWatchdog;
-
-  let prevInnerH = typeof window !== 'undefined' ? window.innerHeight : 800;
   function handleResizeOrVisibility() {
     updateAppHeight();
-    const newH = typeof window !== 'undefined' ? window.innerHeight : 800;
-    if (newH > prevInnerH + 150) {
-      if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
-        document.activeElement.blur();
-      }
-    }
-    prevInnerH = newH;
-    runKeyboardWatchdog();
     updateDebugOverlay();
   }
 
@@ -627,21 +660,48 @@
       });
     }
     window.addEventListener('focus', handleResizeOrVisibility);
-    window.addEventListener('focusin', updateDebugOverlay);
-    window.addEventListener('focusout', () => {
+    window.addEventListener('blur', resetKeyboardInset);
+    window.addEventListener('pagehide', resetKeyboardInset);
+  }
+
+  if (typeof document !== 'undefined') {
+    document.addEventListener('focusin', (e) => {
+      if (focusoutTimer) {
+        clearTimeout(focusoutTimer);
+        focusoutTimer = null;
+      }
+      if (isTextEntryElement(e.target)) {
+        applyKeyboardAndInsets(lastNativeKeyboardInset);
+        const target = e.target;
+        if (typeof requestAnimationFrame === 'function') {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              if (document.activeElement === target && typeof target.scrollIntoView === 'function') {
+                target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+              }
+            });
+          });
+        }
+      }
+      updateDebugOverlay();
+    });
+
+    document.addEventListener('focusout', () => {
+      if (focusoutTimer) clearTimeout(focusoutTimer);
+      focusoutTimer = setTimeout(() => {
+        focusoutTimer = null;
+        if (!isTextEntryElement(document.activeElement)) {
+          resetKeyboardInset();
+        }
+      }, 120);
       setTimeout(updateDebugOverlay, 50);
     });
-  }
-  if (typeof document !== 'undefined') {
-    document.addEventListener('focusout', (e) => {
-      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
-        runKeyboardWatchdog();
-      }
-    });
+
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) {
+      if (document.hidden) {
+        resetKeyboardInset();
+      } else {
         handleResizeOrVisibility();
-        runKeyboardWatchdog();
       }
     });
   }
@@ -1386,6 +1446,7 @@
           try { btnCloseForm.focus(); } catch (e) { }
         }
       } else if (prevScreen === 'form') {
+        resetKeyboardInset();
         if (formTriggerElement && typeof formTriggerElement.focus === 'function') {
           try { formTriggerElement.focus(); } catch (e) { }
         }
@@ -1480,6 +1541,7 @@
   }
 
   function closeFormModal(popHistory = true) {
+    resetKeyboardInset();
     if (popHistory && window.history && window.history.state && window.history.state.screen === 'form') {
       window.history.back();
     } else {
