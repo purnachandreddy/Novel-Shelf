@@ -5,6 +5,7 @@ const assert = require('assert');
 
 const rawHtml = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
 const cleanHtml = rawHtml.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+const buildInfoJs = fs.readFileSync(path.resolve(__dirname, '../build-info.js'), 'utf8');
 const statsCalcJs = fs.readFileSync(path.resolve(__dirname, '../stats-calculator.js'), 'utf8');
 const sheetJs = fs.readFileSync(path.resolve(__dirname, '../sheet.js'), 'utf8');
 const js = fs.readFileSync(path.resolve(__dirname, '../app.js'), 'utf8');
@@ -51,6 +52,7 @@ function createDom(initialStorage = {}) {
   };
 
   // Evaluate scripts in order
+  window.eval(buildInfoJs);
   window.eval(statsCalcJs);
   window.eval(sheetJs);
   window.eval(js);
@@ -1171,6 +1173,17 @@ async function runTests() {
     // 5. ambient-layer is fixed with inset 0 and height 100%
     assert.match(css, /\.ambient-layer\s*\{[^}]*position:\s*fixed/i, '.ambient-layer must be position: fixed');
     assert.match(css, /\.ambient-layer\s*\{[^}]*inset:\s*0/i, '.ambient-layer must have inset: 0');
+  });
+
+  // A33: Build stamp is rendered on the Backup screen
+  await test('A33', 'Build stamp element exists on Backup screen and displays version, commit, and timestamp', async () => {
+    const { window } = createDom();
+    const doc = window.document;
+
+    const buildStamp = doc.getElementById('backup-build-stamp');
+    assert.ok(buildStamp, 'backup-build-stamp element must exist on Backup screen');
+    assert.ok(buildStamp.classList.contains('backup-build-stamp'), 'Must have class backup-build-stamp');
+    assert.match(buildStamp.textContent, /^v\d+\.\d+\.\d+\s*\(\d+\)/, 'Build stamp must display version and version code');
   });
 
   console.log('\n--- Test Summary ---');

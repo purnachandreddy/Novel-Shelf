@@ -2944,6 +2944,16 @@
       });
     }
 
+    // Render Visible Build Stamp on Backup Tab
+    const buildStampEl = document.getElementById('backup-build-stamp');
+    if (buildStampEl) {
+      const info = (typeof window !== 'undefined' && window.BUILD_INFO) ? window.BUILD_INFO : {};
+      const version = info.versionName ? `v${info.versionName} (${info.versionCode || 1})` : 'v1.0.0 (1)';
+      const commit = info.gitCommit ? ` • ${info.gitCommit}` : '';
+      const time = info.buildTime ? ` • ${info.buildTime}` : '';
+      buildStampEl.textContent = `${version}${commit}${time}`;
+    }
+
     // Floating Bottom Navigation Tabs
     if (floatingNav) {
       floatingNav.addEventListener('click', (e) => {

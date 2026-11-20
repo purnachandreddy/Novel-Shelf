@@ -3460,6 +3460,17 @@ textarea {
   color: var(--text-muted);
 }
 
+.backup-build-stamp {
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  padding: 16px 0 8px 0;
+  user-select: text;
+  -webkit-user-select: text;
+  letter-spacing: 0.02em;
+  opacity: 0.85;
+}
+
 /* ---- Custom Confirm Dialog ---- */
 .confirm-card {
   background: var(--popup-bg);

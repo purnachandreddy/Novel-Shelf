@@ -241,6 +241,8 @@ class MainActivity : AppCompatActivity() {
         val settings = webView.settings
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
+        // Ensure updated APK assets are immediately loaded without stale disk caching
+        settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
         // allowFileAccess / allowContentAccess / mixedContent not needed: assets served via appassets
         settings.setSupportZoom(false)
         settings.builtInZoomControls = false
@@ -273,7 +275,13 @@ class MainActivity : AppCompatActivity() {
                 view: WebView,
                 request: WebResourceRequest
             ): WebResourceResponse? {
-                return assetLoader.shouldInterceptRequest(request.url)
+                val response = assetLoader.shouldInterceptRequest(request.url) ?: return null
+                val headers = response.responseHeaders?.toMutableMap() ?: mutableMapOf()
+                headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+                headers["Pragma"] = "no-cache"
+                headers["Expires"] = "0"
+                response.responseHeaders = headers
+                return response
             }
 
             override fun shouldOverrideUrlLoading(

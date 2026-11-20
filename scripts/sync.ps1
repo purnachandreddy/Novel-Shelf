@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     One-command sync, test, and verification script for NovelShelf.
 
@@ -26,6 +26,27 @@ $ErrorActionPreference = "Stop"
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $srcDir = Join-Path $repoRoot "www"
 $destDir = Join-Path $repoRoot "android\app\src\main\assets\www"
+
+Write-Host "==> 0. Generating build stamp in www/build-info.js" -ForegroundColor Cyan
+$gitCommit = "dev"
+try {
+    $gitCmd = Get-Command git -ErrorAction SilentlyContinue
+    if ($gitCmd) {
+        $gitCommit = (& git rev-parse --short HEAD).Trim()
+    }
+} catch {}
+
+$buildTimestamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+$buildInfoContent = @"
+// Novel Shelf Build Information — generated automatically at build/sync time
+window.BUILD_INFO = {
+  versionName: '1.0.0',
+  versionCode: 1,
+  gitCommit: '$gitCommit',
+  buildTime: '$buildTimestamp'
+};
+"@
+Set-Content -Path (Join-Path $srcDir "build-info.js") -Value $buildInfoContent -Encoding UTF8
 
 Write-Host "==> 1. Syncing assets: www -> android/app/src/main/assets/www" -ForegroundColor Cyan
 if (-not (Test-Path $destDir)) {
