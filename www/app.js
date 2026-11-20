@@ -1365,6 +1365,8 @@
       formTriggerElement = document.activeElement;
     }
     showScreen('form', { push: true, from });
+    const formScrollEl = modalNovelForm ? modalNovelForm.querySelector('.form-scroll-body') : null;
+    if (formScrollEl) formScrollEl.scrollTop = 0;
   }
 
   function closeFormModal(popHistory = true) {

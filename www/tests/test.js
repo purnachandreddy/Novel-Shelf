@@ -1186,6 +1186,22 @@ async function runTests() {
     assert.match(buildStamp.textContent, /^v\d+\.\d+\.\d+\s*\(\d+\)/, 'Build stamp must display version and version code');
   });
 
+  // A34: Form screen height is constrained to --app-height so form-scroll-body scrolls internally with overflow-y: auto
+  await test('A34', 'Form screen is constrained to --app-height and form-scroll-body has overflow-y: auto for internal scrolling', async () => {
+    const { window } = createDom();
+    const doc = window.document;
+
+    doc.getElementById('btn-add-novel-top').click();
+    const formModal = doc.getElementById('modal-novel-form');
+    assert.strictEqual(formModal.style.display, 'flex');
+
+    const scrollBody = formModal.querySelector('.form-scroll-body');
+    assert.ok(scrollBody, 'Form scroll body must exist');
+
+    assert.match(css, /\.form-page-view\s*\{[^}]*height:\s*var\(--app-height/i, '.form-page-view must constrain height to --app-height');
+    assert.match(css, /\.form-scroll-body[^{]*\{[^}]*overflow-y:\s*auto/i, '.form-scroll-body must have overflow-y: auto');
+  });
+
   console.log('\n--- Test Summary ---');
   const passed = results.filter(r => r.status === 'PASS').length;
   const failed = results.filter(r => r.status === 'FAIL').length;
