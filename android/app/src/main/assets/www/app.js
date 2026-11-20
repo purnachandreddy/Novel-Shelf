@@ -1060,22 +1060,20 @@
       }
     }
 
-    // Genre pill
-    let genrePill = card.querySelector('.genre-pill');
-    if (novel.genre) {
-      if (genrePill) {
-        if (genrePill.textContent !== novel.genre) genrePill.textContent = novel.genre;
-      } else {
-        const metaRow = card.querySelector('.card-meta-row');
-        if (metaRow) {
-          const pill = document.createElement('span');
-          pill.className = 'genre-pill';
-          pill.textContent = novel.genre;
-          metaRow.appendChild(pill);
-        }
+    // Genre row
+    let genreRow = card.querySelector('.card-genre-row');
+    if (!genreRow) {
+      const metaRow = card.querySelector('.card-meta-row, .card-rating-row');
+      if (metaRow) {
+        genreRow = document.createElement('div');
+        genreRow.className = 'card-genre-row';
+        metaRow.after(genreRow);
       }
-    } else if (genrePill) {
-      genrePill.remove();
+    }
+    if (genreRow) {
+      genreRow.innerHTML = novel.genre
+        ? `<span class="genre-pill">${escHtml(novel.genre)}</span>`
+        : '<span class="genre-pill genre-pill-empty" aria-hidden="true"></span>';
     }
 
     // Progress
@@ -1192,21 +1190,23 @@
   // --- Unified Card Component Helpers (Single Source of Truth) ---
   function renderCardCoverMarkup(novel) {
     const title = escHtml(novel.title || 'Novel');
-    const author = escHtml(novel.author || 'Unknown');
+    const hasAuthor = novel.author && novel.author.trim() && novel.author.trim() !== 'Unknown' && novel.author.trim() !== 'Unknown Author';
+    const author = hasAuthor ? escHtml(novel.author.trim()) : '';
     const genre = escHtml(novel.genre || 'Novel');
+    const authorHtml = author ? `<span class="placeholder-author">${author}</span>` : '';
+    const placeholderInner = `
+        <span class="placeholder-spine">${genre}</span>
+        <div class="placeholder-main">
+          <h3 class="placeholder-title">${title}</h3>
+          ${authorHtml}
+        </div>
+        <div class="placeholder-badge-clearance"></div>`;
+
     if (novel.cover) {
       return `<img class="card-cover-img" src="${escHtml(novel.cover)}" alt="${title}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-        <div class="cover-art-placeholder" style="display:none;">
-          <span class="placeholder-spine">${genre}</span>
-          <h3 class="placeholder-title">${title}</h3>
-          <span class="placeholder-author">${author}</span>
-        </div>`;
+        <div class="cover-art-placeholder" style="display:none;">${placeholderInner}</div>`;
     }
-    return `<div class="cover-art-placeholder">
-        <span class="placeholder-spine">${genre}</span>
-        <h3 class="placeholder-title">${title}</h3>
-        <span class="placeholder-author">${author}</span>
-      </div>`;
+    return `<div class="cover-art-placeholder">${placeholderInner}</div>`;
   }
 
   function renderCardStatusBadgeMarkup(novel) {
@@ -1279,9 +1279,11 @@
       <div class="card-content">
         <h3 class="card-title">${escHtml(novel.title)}</h3>
         <p class="card-author">${escHtml(novel.author || 'Unknown Author')}</p>
-        <div class="card-meta-row">
+        <div class="card-meta-row card-rating-row">
           ${renderCardStarsMarkup(novel)}
-          ${novel.genre ? `<span class="genre-pill">${escHtml(novel.genre)}</span>` : ''}
+        </div>
+        <div class="card-genre-row">
+          ${novel.genre ? `<span class="genre-pill">${escHtml(novel.genre)}</span>` : '<span class="genre-pill genre-pill-empty" aria-hidden="true"></span>'}
         </div>
         ${renderCardProgressMarkup(novel)}
         ${renderCardQuickActionsMarkup(novel)}
@@ -1651,19 +1653,22 @@
       : `<span class="novel-unrated-label rating-unrated detail-unrated">Not rated</span>`;
 
     let coverHtml;
+    const hasDetailAuthor = novel.author && novel.author.trim() && novel.author.trim() !== 'Unknown' && novel.author.trim() !== 'Unknown Author';
+    const detailAuthorText = hasDetailAuthor ? escHtml(novel.author.trim()) : '';
+    const detailAuthorHtml = detailAuthorText ? `<span class="placeholder-author">${detailAuthorText}</span>` : '';
+    const detailPlaceholderInner = `
+        <span class="placeholder-spine">${escHtml(novel.genre || 'Novel')}</span>
+        <div class="placeholder-main">
+          <h3 class="placeholder-title">${escHtml(novel.title)}</h3>
+          ${detailAuthorHtml}
+        </div>
+        <div class="placeholder-badge-clearance"></div>`;
+
     if (novel.cover) {
       coverHtml = `<img src="${escHtml(novel.cover)}" alt="${escHtml(novel.title)}" decoding="async" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-        <div class="cover-art-placeholder" style="display:none;">
-          <span class="placeholder-spine">${escHtml(novel.genre || 'Novel')}</span>
-          <h3 class="placeholder-title">${escHtml(novel.title)}</h3>
-          <span class="placeholder-author">${escHtml(novel.author || 'Unknown')}</span>
-        </div>`;
+        <div class="cover-art-placeholder" style="display:none;">${detailPlaceholderInner}</div>`;
     } else {
-      coverHtml = `<div class="cover-art-placeholder">
-          <span class="placeholder-spine">${escHtml(novel.genre || 'Novel')}</span>
-          <h3 class="placeholder-title">${escHtml(novel.title)}</h3>
-          <span class="placeholder-author">${escHtml(novel.author || 'Unknown')}</span>
-        </div>`;
+      coverHtml = `<div class="cover-art-placeholder">${detailPlaceholderInner}</div>`;
     }
 
     const tagsHtml = (novel.tags && novel.tags.length > 0)

@@ -1322,6 +1322,61 @@ async function runTests() {
     assert.match(txt, /Ch:\s*1962\s*\/\s*1962/, 'Must show 1962 / 1962 for completed novel');
   });
 
+  // A37: Grid cards have uniform row structure with pinned footer and non-overlapping placeholder cover
+  await test('A37', 'Grid cards have uniform row structure with pinned footer and non-overlapping placeholder cover', async () => {
+    const novels = [
+      { id: 'g1', title: 'Rated with Genre', author: 'Author A', chaptersRead: 10, chaptersTotal: 50, rating: 4.5, genre: 'Fantasy', status: 'Reading' },
+      { id: 'g2', title: 'Unrated no Genre', author: '', chaptersRead: 0, chaptersTotal: null, rating: 0, genre: '', status: 'Reading' }
+    ];
+    const { window } = createDom({
+      novelshelf_library_v1: JSON.stringify(novels)
+    });
+    const doc = window.document;
+
+    const card1 = doc.querySelector(`.novel-card[data-id="g1"]`);
+    const card2 = doc.querySelector(`.novel-card[data-id="g2"]`);
+    assert.ok(card1 && card2, 'Both grid cards must exist');
+
+    // Both cards must contain identical row elements in order
+    assert.ok(card1.querySelector('.card-cover-column'), 'Card 1 must have cover column');
+    assert.ok(card2.querySelector('.card-cover-column'), 'Card 2 must have cover column');
+
+    assert.ok(card1.querySelector('.card-title'), 'Card 1 must have card-title');
+    assert.ok(card2.querySelector('.card-title'), 'Card 2 must have card-title');
+
+    assert.ok(card1.querySelector('.card-author'), 'Card 1 must have card-author');
+    assert.ok(card2.querySelector('.card-author'), 'Card 2 must have card-author');
+
+    assert.ok(card1.querySelector('.card-rating-row'), 'Card 1 must have card-rating-row');
+    assert.ok(card2.querySelector('.card-rating-row'), 'Card 2 must have card-rating-row');
+
+    assert.ok(card1.querySelector('.card-genre-row'), 'Card 1 must have card-genre-row');
+    assert.ok(card2.querySelector('.card-genre-row'), 'Card 2 must have card-genre-row');
+
+    // Card 2 (empty genre) has genre-pill-empty placeholder so heights stay identical
+    assert.ok(card2.querySelector('.card-genre-row .genre-pill-empty'), 'Card 2 must have empty genre pill placeholder');
+
+    // Progress bar must always be rendered even at Ch. 0
+    assert.ok(card1.querySelector('.card-progress-wrap .progress-track'), 'Card 1 must have progress track');
+    assert.ok(card2.querySelector('.card-progress-wrap .progress-track'), 'Card 2 must have progress track even at Ch 0');
+
+    // Footers must exist and be pinned
+    const footer1 = card1.querySelector('.card-quick-actions');
+    const footer2 = card2.querySelector('.card-quick-actions');
+    assert.ok(footer1 && footer2, 'Both cards must have quick action footers');
+
+    // CSS source assertion for pinned footer and card structure
+    assert.match(css, /\.card-quick-actions\s*\{[^}]*margin-top:\s*auto/i, 'Footer must have margin-top: auto');
+    assert.match(css, /\.novels-grid\s*\.card-title\s*\{[^}]*min-height/i, 'Grid title must reserve 2 lines');
+
+    // Step 3: Placeholder cover clearance
+    const placeholder2 = card2.querySelector('.cover-art-placeholder');
+    assert.ok(placeholder2, 'Uncovered novel must render cover-art-placeholder');
+    assert.ok(placeholder2.querySelector('.placeholder-badge-clearance'), 'Placeholder must have badge clearance space');
+    // Empty author should not render placeholder-author element
+    assert.strictEqual(placeholder2.querySelector('.placeholder-author'), null, 'Empty author should not render placeholder-author text');
+  });
+
   console.log('\n--- Test Summary ---');
   const passed = results.filter(r => r.status === 'PASS').length;
   const failed = results.filter(r => r.status === 'FAIL').length;

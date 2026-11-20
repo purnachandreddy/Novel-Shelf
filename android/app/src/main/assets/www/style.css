@@ -1911,10 +1911,24 @@ select option {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 14px 10px;
+  padding: 12px 8px;
   text-align: center;
   background: linear-gradient(145deg, #1e2a3a 0%, #0f1825 100%);
   border-left: 5px solid rgba(245, 158, 11, .3);
+}
+
+.placeholder-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  margin: auto 0;
+}
+
+.placeholder-badge-clearance {
+  height: 24px;
+  min-height: 24px;
+  flex-shrink: 0;
 }
 
 .placeholder-spine {
@@ -1995,18 +2009,62 @@ select option {
   left: 8px;
 }
 
+.novels-grid .novel-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
 .novels-grid .card-content {
-  padding: 6px 8px 8px;
+  padding: 8px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
   gap: 2px;
 }
 
 .novels-grid .card-title {
   font-size: .8rem;
-  line-height: 1.2;
+  line-height: 1.25;
+  min-height: calc(1.25em * 2);
+  max-height: calc(1.25em * 2);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .novels-grid .card-author {
   font-size: .70rem;
+  line-height: 1.25;
+  min-height: 1.25em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.novels-grid .card-rating-row,
+.card-rating-row {
+  height: 20px;
+  min-height: 20px;
+  display: flex;
+  align-items: center;
+}
+
+.novels-grid .card-genre-row,
+.card-genre-row {
+  height: 20px;
+  min-height: 20px;
+  display: flex;
+  align-items: center;
+}
+
+.genre-pill-empty {
+  visibility: hidden;
+  display: inline-block;
+  height: 16px;
+  width: 1px;
 }
 
 .novels-grid .card-meta-row {
@@ -2022,7 +2080,7 @@ select option {
 .novels-grid .genre-pill {
   padding: 1px 4px;
   font-size: .62rem;
-  max-width: 55px;
+  max-width: 80px;
 }
 
 .novels-grid .progress-info {
@@ -2031,8 +2089,9 @@ select option {
 }
 
 .novels-grid .card-quick-actions {
-  margin-top: 4px;
-  padding-top: 4px;
+  margin-top: auto;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-subtle);
 }
 
 .novels-grid .card-source-label {
@@ -2177,7 +2236,7 @@ select option {
 .progress-track {
   width: 100%;
   height: 5px;
-  background: var(--bg-elevated);
+  background: rgba(255, 255, 255, 0.08);
   border-radius: var(--r-full);
   overflow: hidden;
 }
@@ -2193,7 +2252,7 @@ select option {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 8px;
+  margin-top: auto;
   padding-top: 8px;
   border-top: 1px solid var(--border-subtle);
 }
