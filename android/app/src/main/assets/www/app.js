@@ -1096,8 +1096,10 @@
     }
 
     const isCompleted = (novel.status || '').toLowerCase() === 'completed';
+    const hasReadTotal = novel.chaptersTotal && (novel.chaptersRead || 0) >= novel.chaptersTotal;
+    const hideQuickAdd = isCompleted || hasReadTotal;
     const quickBtn = card.querySelector('[data-action="quick-add"]');
-    if (isCompleted) {
+    if (hideQuickAdd) {
       if (quickBtn) quickBtn.remove();
     } else {
       if (quickBtn) {
@@ -1242,7 +1244,9 @@
     const source = escHtml(novel.source || '');
     const title = escHtml(novel.title || 'novel');
     const isCompleted = (novel.status || '').toLowerCase() === 'completed';
-    const btnHtml = isCompleted
+    const hasReadTotal = novel.chaptersTotal && (novel.chaptersRead || 0) >= novel.chaptersTotal;
+    const hideQuickAdd = isCompleted || hasReadTotal;
+    const btnHtml = hideQuickAdd
       ? ''
       : `<button class="btn-quick-chapter" data-action="quick-add" data-id="${escHtml(novel.id)}" aria-label="Add 1 chapter to ${title}">＋1 Ch</button>`;
     return `<div class="card-quick-actions">
@@ -1687,15 +1691,16 @@
       novel.finished ? 'Finished: ' + escHtml(formatDisplayDate(novel.finished)) : null
     ].filter(Boolean).join('<br>') || '—';
 
-    const isCompleted = novel.status === 'Completed';
-    const progressButtonsHtml = isCompleted
+    const isCompleted = (novel.status || '').toLowerCase() === 'completed';
+    const hasReadTotal = novel.chaptersTotal && read >= total;
+    const hideAddButtons = isCompleted || hasReadTotal;
+    const progressButtonsHtml = hideAddButtons
       ? (/^https?:\/\//i.test(novel.link || '') ? `<a class="btn btn-primary btn-sm detail-read-btn" href="${escHtml(novel.link)}" target="_blank" rel="noopener noreferrer">Read ↗</a>` : '')
       : `<button class="btn btn-secondary btn-sm" id="btn-detail-add-1">＋1 Chapter</button>
          <button class="btn btn-secondary btn-sm" id="btn-detail-add-5">＋5 Chapters</button>
          ${/^https?:\/\//i.test(novel.link || '') ? `<a class="btn btn-primary btn-sm detail-read-btn" href="${escHtml(novel.link)}" target="_blank" rel="noopener noreferrer">Read ↗</a>` : ''}`;
 
-    const hasReadTotal = novel.chaptersTotal && read >= total && !isCompleted;
-    const markCompletedChip = hasReadTotal
+    const markCompletedChip = hasReadTotal && !isCompleted
       ? `<button type="button" class="chip-mark-completed" id="btn-detail-mark-completed">All chapters read: mark completed</button>`
       : '';
 

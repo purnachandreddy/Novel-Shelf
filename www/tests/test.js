@@ -846,18 +846,29 @@ async function runTests() {
     doc.querySelector('.status-pill-btn[data-status="Completed"]').click();
     doc.getElementById('novel-form').dispatchEvent(new window.Event('submit', { cancelable: true, bubbles: true }));
 
+    // Add a Reading novel with all chapters read (e.g. 100/100)
+    doc.getElementById('btn-add-novel-top').click();
+    doc.getElementById('form-title').value = 'All Chapters Read Reading Novel';
+    doc.getElementById('form-chapters-read').value = '100';
+    doc.getElementById('form-chapters-total').value = '100';
+    doc.getElementById('novel-form').dispatchEvent(new window.Event('submit', { cancelable: true, bubbles: true }));
+
     const cards = Array.from(doc.querySelectorAll('.novel-card'));
     const readingCard = cards.find(c => c.textContent.includes('Active Reading Novel'));
     const completedCard = cards.find(c => c.textContent.includes('Finished Story'));
+    const fullChaptersCard = cards.find(c => c.textContent.includes('All Chapters Read Reading Novel'));
 
     assert.ok(readingCard, 'Reading card should exist');
     assert.ok(completedCard, 'Completed card should exist');
+    assert.ok(fullChaptersCard, 'All chapters read card should exist');
 
     const readingPlusBtn = readingCard.querySelector('[data-action="quick-add"]');
     const completedPlusBtn = completedCard.querySelector('[data-action="quick-add"]');
+    const fullChaptersPlusBtn = fullChaptersCard.querySelector('[data-action="quick-add"]');
 
-    assert.ok(readingPlusBtn, 'Reading novel should have +1 Ch button');
+    assert.ok(readingPlusBtn, 'Reading novel with chapters left should have +1 Ch button');
     assert.strictEqual(completedPlusBtn, null, 'Completed novel must NOT have +1 Ch button');
+    assert.strictEqual(fullChaptersPlusBtn, null, 'Novel with chaptersRead >= chaptersTotal must NOT have +1 Ch button even if status is Reading');
   });
 
   // A25: Form Enter key does not submit, tag preview chips render and delete, genre pills sync
