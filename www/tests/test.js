@@ -992,6 +992,22 @@ async function runTests() {
     assert.ok(gridUnrated.classList.contains('rating-unrated'));
     assert.ok(listUnrated.classList.contains('rating-unrated'));
     assert.ok(detailsUnrated.classList.contains('rating-unrated'));
+
+    // Step 1: Font stack unifications and CSS source checks
+    assert.match(css, /--font-main:[^;]*'Plus Jakarta Sans'/i, '--font-main must include Plus Jakarta Sans');
+    assert.doesNotMatch(css, /--font-main:[^;]*'Nunito'/i, '--font-main must not contain Nunito');
+    assert.doesNotMatch(css, /--font-main:[^;]*ui-rounded/i, '--font-main must not contain ui-rounded');
+    assert.match(css, /\.rating-unrated[^{]*\{[^}]*font-family:\s*inherit/i, 'rating-unrated must inherit font');
+
+    // Verify unrated font-size is smaller than author line in details
+    const authorEl = detailsView.querySelector('.detail-author');
+    if (window.getComputedStyle && authorEl && detailsUnrated) {
+      const authorFs = parseFloat(window.getComputedStyle(authorEl).fontSize) || 0;
+      const unratedFs = parseFloat(window.getComputedStyle(detailsUnrated).fontSize) || 0;
+      if (authorFs > 0 && unratedFs > 0) {
+        assert.ok(unratedFs <= authorFs, 'Unrated font-size must be smaller than or equal to author line');
+      }
+    }
   });
 
   // A28: Filter row, status tabs, search box, and cards list alignment

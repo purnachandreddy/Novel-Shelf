@@ -4,6 +4,8 @@ build/
 **/build/
 *.apk
 *.aab
+.kotlin/
+**/.kotlin/
 
 # IDE & Editor files
 .idea/

@@ -533,6 +533,23 @@
     const activeEl = document.activeElement;
     const activeElStr = activeEl ? `${activeEl.tagName.toLowerCase()}${activeEl.id ? '#' + activeEl.id : ''}` : 'none';
 
+    let unratedFontInfo = 'N/A';
+    const unratedEl = document.querySelector('.novel-unrated-label, .rating-unrated');
+    if (unratedEl && typeof window.getComputedStyle === 'function') {
+      const cs = window.getComputedStyle(unratedEl);
+      unratedFontInfo = `${cs.fontSize} / ${cs.fontFamily}`;
+    } else if (typeof document !== 'undefined' && document.body && typeof window.getComputedStyle === 'function') {
+      const span = document.createElement('span');
+      span.className = 'novel-unrated-label rating-unrated';
+      span.textContent = 'Not rated';
+      span.style.position = 'absolute';
+      span.style.visibility = 'hidden';
+      document.body.appendChild(span);
+      const cs = window.getComputedStyle(span);
+      unratedFontInfo = `${cs.fontSize} / ${cs.fontFamily}`;
+      span.remove();
+    }
+
     overlay.textContent =
       `window.innerHeight: ${innerH}px\n` +
       `visualViewport.height: ${vvH}px\n` +
@@ -540,6 +557,7 @@
       `--app-height: ${appH}\n` +
       `--kb: ${currentKb}px\n` +
       `--inset-bottom: ${insetBottom}\n` +
+      `unratedLabel: ${unratedFontInfo}\n` +
       `native webView.height: ${nativeMetrics.webViewHeight}px\n` +
       `native binding.root paddingBottom: ${nativeMetrics.rootPaddingBottom}px\n` +
       `activeScreen: #${activeScreenId} (${activeScreenH})\n` +
