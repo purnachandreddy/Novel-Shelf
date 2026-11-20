@@ -490,7 +490,75 @@
     });
   }
 
-  // --- Viewport Height Management (--app-height) ---
+  // --- Viewport Height Management & Diagnostic Debug Overlay ---
+  const debugEvents = [];
+  function logDebugEvent(name) {
+    const d = new Date();
+    const timeStr = d.toTimeString().split(' ')[0] + '.' + String(d.getMilliseconds()).padStart(3, '0');
+    debugEvents.push(`[${timeStr}] ${name}`);
+    if (debugEvents.length > 5) {
+      debugEvents.shift();
+    }
+    updateDebugOverlay();
+  }
+  window.logDebugEvent = logDebugEvent;
+
+  function updateDebugOverlay() {
+    const overlay = document.getElementById('debug-overlay');
+    if (!overlay || overlay.style.display === 'none') return;
+
+    const innerH = typeof window !== 'undefined' ? window.innerHeight : 0;
+    const vvH = (typeof window !== 'undefined' && window.visualViewport) ? window.visualViewport.height.toFixed(1) : 'N/A';
+    const clientH = document.documentElement ? document.documentElement.clientHeight : 0;
+    const rootStyle = document.documentElement ? getComputedStyle(document.documentElement) : null;
+    const appH = rootStyle ? rootStyle.getPropertyValue('--app-height').trim() : '';
+    const insetBottom = rootStyle ? rootStyle.getPropertyValue('--inset-bottom').trim() : '';
+
+    // active screen container
+    let activeScreen = document.querySelector('.view-screen:not([style*="display: none"]):not([style*="display:none"])');
+    if (!activeScreen) {
+      activeScreen = document.querySelector('.screen-container');
+    }
+    const activeScreenH = activeScreen ? (typeof window !== 'undefined' && window.getComputedStyle ? window.getComputedStyle(activeScreen).height : '') : 'N/A';
+    const activeScreenId = activeScreen ? activeScreen.id : 'none';
+
+    // form action bar getBoundingClientRect
+    const actionBar = document.querySelector('.form-actions-bottom');
+    let barRectStr = 'N/A';
+    if (actionBar && typeof actionBar.getBoundingClientRect === 'function') {
+      const rect = actionBar.getBoundingClientRect();
+      barRectStr = `top=${rect.top.toFixed(1)} bot=${rect.bottom.toFixed(1)} h=${rect.height.toFixed(1)}`;
+    }
+
+    const activeEl = document.activeElement;
+    const activeElStr = activeEl ? `${activeEl.tagName.toLowerCase()}${activeEl.id ? '#' + activeEl.id : ''}` : 'none';
+
+    overlay.textContent =
+      `window.innerHeight: ${innerH}px\n` +
+      `visualViewport.height: ${vvH}px\n` +
+      `documentElement.clientHeight: ${clientH}px\n` +
+      `--app-height: ${appH}\n` +
+      `--inset-bottom: ${insetBottom}\n` +
+      `activeScreen: #${activeScreenId} (${activeScreenH})\n` +
+      `actionBar: ${barRectStr}\n` +
+      `activeElement: ${activeElStr}\n\n` +
+      `Events (last 5):\n` +
+      (debugEvents.length ? debugEvents.join('\n') : '(none)');
+  }
+  window.updateDebugOverlay = updateDebugOverlay;
+
+  function toggleDebugOverlay() {
+    const overlay = document.getElementById('debug-overlay');
+    if (!overlay) return;
+    const isHidden = overlay.style.display === 'none' || !overlay.style.display;
+    overlay.style.display = isHidden ? 'block' : 'none';
+    overlay.setAttribute('aria-hidden', isHidden ? 'false' : 'true');
+    if (isHidden) {
+      updateDebugOverlay();
+    }
+  }
+  window.toggleDebugOverlay = toggleDebugOverlay;
+
   function updateAppHeight() {
     const h = (typeof window !== 'undefined' && window.innerHeight)
       ? window.innerHeight
@@ -498,6 +566,7 @@
     if (document.documentElement) {
       document.documentElement.style.setProperty('--app-height', `${h}px`);
     }
+    updateDebugOverlay();
   }
   window.updateAppHeight = updateAppHeight;
 
@@ -505,10 +574,12 @@
   updateAppHeight();
 
   window.onKeyboardHidden = function() {
+    logDebugEvent('onKeyboardHidden call');
     updateAppHeight();
     if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
       document.activeElement.blur();
     }
+    updateDebugOverlay();
   };
 
   let prevInnerH = typeof window !== 'undefined' ? window.innerHeight : 800;
@@ -521,14 +592,25 @@
       }
     }
     prevInnerH = newH;
+    updateDebugOverlay();
   }
 
   if (typeof window !== 'undefined') {
-    window.addEventListener('resize', handleResizeOrVisibility);
+    window.addEventListener('resize', () => {
+      logDebugEvent(`resize ${window.innerHeight}px`);
+      handleResizeOrVisibility();
+    });
     if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', handleResizeOrVisibility);
+      window.visualViewport.addEventListener('resize', () => {
+        logDebugEvent(`vv resize ${window.visualViewport.height.toFixed(1)}px`);
+        handleResizeOrVisibility();
+      });
     }
     window.addEventListener('focus', handleResizeOrVisibility);
+    window.addEventListener('focusin', updateDebugOverlay);
+    window.addEventListener('focusout', () => {
+      setTimeout(updateDebugOverlay, 50);
+    });
   }
   if (typeof document !== 'undefined') {
     document.addEventListener('visibilitychange', () => {
@@ -2954,6 +3036,45 @@
       const commit = info.gitCommit ? ` • ${info.gitCommit}` : '';
       const time = info.buildTime ? ` • ${info.buildTime}` : '';
       buildStampEl.textContent = `${version}${commit}${time}`;
+
+      // Long-press (1.5s) toggles hidden diagnostic overlay
+      let pressTimer = null;
+      let startX = 0;
+      let startY = 0;
+      const startPress = (e) => {
+        if (pressTimer) clearTimeout(pressTimer);
+        if (e.touches && e.touches.length > 0) {
+          startX = e.touches[0].clientX;
+          startY = e.touches[0].clientY;
+        }
+        pressTimer = setTimeout(() => {
+          pressTimer = null;
+          toggleDebugOverlay();
+          if (typeof Android !== 'undefined' && Android.haptic) {
+            try { Android.haptic('confirm'); } catch (_) {}
+          }
+        }, 1500);
+      };
+      const cancelPress = () => {
+        if (pressTimer) {
+          clearTimeout(pressTimer);
+          pressTimer = null;
+        }
+      };
+      const movePress = (e) => {
+        if (pressTimer && e.touches && e.touches.length > 0) {
+          const dx = Math.abs(e.touches[0].clientX - startX);
+          const dy = Math.abs(e.touches[0].clientY - startY);
+          if (dx > 10 || dy > 10) cancelPress();
+        }
+      };
+      buildStampEl.addEventListener('touchstart', startPress, { passive: true });
+      buildStampEl.addEventListener('touchend', cancelPress, { passive: true });
+      buildStampEl.addEventListener('touchcancel', cancelPress, { passive: true });
+      buildStampEl.addEventListener('touchmove', movePress, { passive: true });
+      buildStampEl.addEventListener('mousedown', startPress);
+      buildStampEl.addEventListener('mouseup', cancelPress);
+      buildStampEl.addEventListener('mouseleave', cancelPress);
     }
 
     // Floating Bottom Navigation Tabs

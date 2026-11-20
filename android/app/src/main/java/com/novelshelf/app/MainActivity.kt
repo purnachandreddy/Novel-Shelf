@@ -56,6 +56,7 @@ class MainActivity : AppCompatActivity() {
             document.documentElement.style.setProperty('--inset-right', '${rightPx}px');
             document.documentElement.style.setProperty('--ime-height', '0px');
             if (window.updateAppHeight) { window.updateAppHeight(); }
+            if (window.logDebugEvent) { window.logDebugEvent('native: ime=$imeBottom bars=${bars.bottom} pad=$imeBottom'); }
         """.trimIndent().replace("\n", " ")
 
         currentInsetsJs = js
