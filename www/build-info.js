@@ -2,6 +2,6 @@
 window.BUILD_INFO = {
   versionName: '1.0.0',
   versionCode: 1,
-  gitCommit: '40afd28',
-  buildTime: '2026-11-20 20:52:38'
+  gitCommit: 'ff2b33e',
+  buildTime: '2026-11-20 20:59:03'
 };
