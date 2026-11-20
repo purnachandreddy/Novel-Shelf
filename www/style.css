@@ -243,18 +243,18 @@ body::-webkit-scrollbar,
 }
 
 html {
-  height: var(--app-height, 100%);
+  min-height: var(--app-height, 100%);
+  background: var(--surface-base);
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
 }
 
 body {
   font-family: var(--font-main);
-  background: var(--bg-primary);
+  background: transparent;
   color: var(--text-primary);
   line-height: 1.5;
   overflow-x: hidden;
-  height: var(--app-height, 100%);
   min-height: var(--app-height, 100%);
   -webkit-overflow-scrolling: touch;
   user-select: none;
@@ -282,7 +282,7 @@ select,
   position: fixed;
   inset: 0;
   width: 100%;
-  height: var(--app-height, 100vh);
+  height: 100%;
   pointer-events: none;
   z-index: var(--z-ambient);
   contain: paint;
@@ -296,8 +296,6 @@ body::before,
 body::after {
   display: none !important;
   content: none !important;
-}
-  animation: ambientFloat2 26s ease-in-out infinite alternate;
 }
 
 body.ambient-paused::before,
@@ -347,8 +345,8 @@ body.ambient-paused::after {
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  height: var(--app-height, 100%);
   min-height: var(--app-height, 100%);
+  background: transparent;
 }
 
 /* ---- Header ---- */
@@ -3095,8 +3093,8 @@ textarea {
 .details-page-view {
   display: flex;
   flex-direction: column;
-  min-height: var(--app-height, 100%);
-  background: var(--surface-base) !important;
+  min-height: 100%;
+  background: transparent;
   width: 100%;
 }
 

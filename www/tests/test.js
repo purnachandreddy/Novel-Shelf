@@ -8,6 +8,7 @@ const cleanHtml = rawHtml.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/scr
 const statsCalcJs = fs.readFileSync(path.resolve(__dirname, '../stats-calculator.js'), 'utf8');
 const sheetJs = fs.readFileSync(path.resolve(__dirname, '../sheet.js'), 'utf8');
 const js = fs.readFileSync(path.resolve(__dirname, '../app.js'), 'utf8');
+const css = fs.readFileSync(path.resolve(__dirname, '../style.css'), 'utf8');
 
 function createDom(initialStorage = {}) {
   const dom = new JSDOM(cleanHtml, {
@@ -16,6 +17,11 @@ function createDom(initialStorage = {}) {
   });
 
   const { window } = dom;
+
+  // Inject CSS stylesheet into DOM head for computed style assertions
+  const styleEl = window.document.createElement('style');
+  styleEl.textContent = css;
+  window.document.head.appendChild(styleEl);
 
   // Set initial storage items in standard localStorage before executing app.js
   if (initialStorage) {
@@ -1137,6 +1143,34 @@ async function runTests() {
     // On reading novel, +1 and +5 buttons must exist
     assert.ok(doc.getElementById('btn-detail-add-1'), 'Reading novel MUST have +1 Chapter button in details');
     assert.ok(doc.getElementById('btn-detail-add-5'), 'Reading novel MUST have +5 Chapters button in details');
+  });
+
+  // A32: Single solid background on html, screen wrappers grow with min-height, no viewport-tied wrapper heights
+  await test('A32', 'Single solid page background on html, screen wrappers grow with min-height without viewport-tied height', async () => {
+    const { window } = createDom();
+    const doc = window.document;
+
+    // Check style.css rules directly and via computed styles
+    // 1. html has background: var(--surface-base)
+    assert.match(css, /html\s*\{[^}]*background:\s*var\(--surface-base\)/i, 'html must specify background: var(--surface-base)');
+    assert.match(css, /html\s*\{[^}]*min-height:\s*var\(--app-height,\s*100%\)/i, 'html must use min-height, not fixed height');
+    assert.doesNotMatch(css, /html\s*\{[^}]*(?<!-)\bheight:\s*var\(--app-height/i, 'html must not have fixed viewport height');
+
+    // 2. body has transparent background and min-height
+    assert.match(css, /body\s*\{[^}]*background:\s*transparent/i, 'body must have transparent background');
+    assert.doesNotMatch(css, /body\s*\{[^}]*(?<!-)\bheight:\s*var\(--app-height/i, 'body must not have fixed viewport height');
+
+    // 3. .app-container has min-height and transparent background
+    assert.match(css, /\.app-container\s*\{[^}]*min-height:\s*var\(--app-height,\s*100%\)/i, '.app-container must use min-height');
+    assert.doesNotMatch(css, /\.app-container\s*\{[^}]*(?<!-)\bheight:\s*var\(--app-height/i, '.app-container must not have fixed viewport height');
+
+    // 4. .details-page-view has min-height and transparent background
+    assert.match(css, /\.details-page-view\s*\{[^}]*background:\s*transparent/i, '.details-page-view must have transparent background');
+    assert.doesNotMatch(css, /\.details-page-view\s*\{[^}]*background:\s*var\(--surface-base\)\s*!important/i, '.details-page-view must not paint separate solid background');
+
+    // 5. ambient-layer is fixed with inset 0 and height 100%
+    assert.match(css, /\.ambient-layer\s*\{[^}]*position:\s*fixed/i, '.ambient-layer must be position: fixed');
+    assert.match(css, /\.ambient-layer\s*\{[^}]*inset:\s*0/i, '.ambient-layer must have inset: 0');
   });
 
   console.log('\n--- Test Summary ---');
