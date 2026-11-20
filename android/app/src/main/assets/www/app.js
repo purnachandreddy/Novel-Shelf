@@ -586,6 +586,47 @@
     return false;
   }
 
+  function scrollFieldIntoFormView(field) {
+    if (!field) return;
+    const formModal = document.getElementById('modal-novel-form');
+    if (!formModal || formModal.style.display === 'none') return;
+    const formScrollEl = formModal.querySelector('.form-scroll-body');
+    if (!formScrollEl) return;
+
+    if (formModal.scrollTop !== 0) formModal.scrollTop = 0;
+    const nForm = document.getElementById('novel-form');
+    if (nForm && nForm.scrollTop !== 0) nForm.scrollTop = 0;
+    if (typeof window !== 'undefined' && (window.scrollY !== 0 || window.scrollX !== 0)) {
+      try { window.scrollTo(0, 0); } catch (e) { }
+    }
+
+    const containerRect = formScrollEl.getBoundingClientRect();
+    const fieldRect = field.getBoundingClientRect();
+
+    const fieldTopInContainer = (fieldRect.top - containerRect.top) + formScrollEl.scrollTop;
+    const isAbove = fieldRect.top < containerRect.top + 8;
+    const isBelow = fieldRect.bottom > containerRect.bottom - 12;
+
+    if (isAbove || isBelow) {
+      const targetScroll = Math.max(0, fieldTopInContainer - (containerRect.height / 3));
+      if (typeof formScrollEl.scrollTo === 'function') {
+        formScrollEl.scrollTo({ top: targetScroll, behavior: 'smooth' });
+      } else {
+        formScrollEl.scrollTop = targetScroll;
+      }
+    }
+
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(() => {
+        if (formModal && formModal.scrollTop !== 0) formModal.scrollTop = 0;
+        if (nForm && nForm.scrollTop !== 0) nForm.scrollTop = 0;
+        if (typeof window !== 'undefined' && (window.scrollY !== 0 || window.scrollX !== 0)) {
+          try { window.scrollTo(0, 0); } catch (e) { }
+        }
+      });
+    }
+  }
+
   function applyKeyboardAndInsets(kbValue) {
     const hasFocusedText = isTextEntryElement(document.activeElement);
     const effectiveKb = hasFocusedText ? Math.max(0, kbValue) : 0;
@@ -597,6 +638,14 @@
       const effectiveInsetBottom = effectiveKb > 0 ? 0 : systemInsets.bottom;
       document.documentElement.style.setProperty('--inset-bottom', `${effectiveInsetBottom}px`);
     }
+
+    if (effectiveKb > 0) {
+      const active = document.activeElement;
+      if (isTextEntryElement(active)) {
+        scrollFieldIntoFormView(active);
+      }
+    }
+
     updateDebugOverlay();
   }
 
@@ -673,14 +722,22 @@
       if (isTextEntryElement(e.target)) {
         applyKeyboardAndInsets(lastNativeKeyboardInset);
         const target = e.target;
-        if (typeof requestAnimationFrame === 'function') {
-          requestAnimationFrame(() => {
+        if (target.closest && target.closest('#modal-novel-form')) {
+          if (typeof requestAnimationFrame === 'function') {
             requestAnimationFrame(() => {
-              if (document.activeElement === target && typeof target.scrollIntoView === 'function') {
-                target.scrollIntoView({ block: 'center', behavior: 'smooth' });
-              }
+              scrollFieldIntoFormView(target);
             });
-          });
+          }
+        } else {
+          if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                if (document.activeElement === target && typeof target.scrollIntoView === 'function') {
+                  target.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                }
+              });
+            });
+          }
         }
       }
       updateDebugOverlay();
@@ -1536,12 +1593,25 @@
       formTriggerElement = document.activeElement;
     }
     showScreen('form', { push: true, from });
+    if (modalNovelForm) modalNovelForm.scrollTop = 0;
+    if (novelForm) novelForm.scrollTop = 0;
+    if (typeof window !== 'undefined') {
+      try { window.scrollTo(0, 0); } catch (e) { }
+    }
     const formScrollEl = modalNovelForm ? modalNovelForm.querySelector('.form-scroll-body') : null;
     if (formScrollEl) formScrollEl.scrollTop = 0;
   }
 
   function closeFormModal(popHistory = true) {
+    if (document.activeElement && typeof document.activeElement.blur === 'function') {
+      document.activeElement.blur();
+    }
     resetKeyboardInset();
+    if (modalNovelForm) modalNovelForm.scrollTop = 0;
+    if (novelForm) novelForm.scrollTop = 0;
+    if (typeof window !== 'undefined') {
+      try { window.scrollTo(0, 0); } catch (e) { }
+    }
     if (popHistory && window.history && window.history.state && window.history.state.screen === 'form') {
       window.history.back();
     } else {
@@ -2677,15 +2747,52 @@
   }
 
   // --- Export TXT Summary ---
-  function exportLibraryTxt() {
-    if (library.length === 0) {
-      showToast('Library is empty — nothing to export.', 'error');
-      return;
+  function generateLibraryTxt(novels) {
+    if (!novels || novels.length === 0) {
+      return '';
     }
 
-    const blocks = library.map(novel => {
+    const totalNovels = novels.length;
+    const completedCount = novels.filter(n => (n.status || '').toLowerCase() === 'completed').length;
+    const readingCount = novels.filter(n => (n.status || '').toLowerCase() === 'reading').length;
+    const onHoldCount = novels.filter(n => (n.status || '').toLowerCase() === 'on hold').length;
+    const planCount = novels.filter(n => (n.status || '').toLowerCase() === 'plan to read').length;
+    const droppedCount = novels.filter(n => (n.status || '').toLowerCase() === 'dropped').length;
+
+    const summaryHeader = [
+      '========================================',
+      'NOVEL SHELF LIBRARY SUMMARY',
+      '========================================',
+      `Total Novels: ${totalNovels}`,
+      `Completed: ${completedCount}`,
+      `Reading (Pending): ${readingCount}`,
+      `On Hold (Paused): ${onHoldCount}`,
+      `Plan to Read: ${planCount}`,
+      `Dropped: ${droppedCount}`,
+      '========================================'
+    ].join('\n');
+
+    const blocks = novels.map((novel, index) => {
+      const serialNum = index + 1;
       const title = novel.title || 'Untitled';
-      const ch = novel.chaptersRead != null ? novel.chaptersRead : 0;
+      const authorText = (novel.author && String(novel.author).trim()) ? String(novel.author).trim() : 'Unknown';
+      const sourceText = (novel.source && String(novel.source).trim()) ? String(novel.source).trim() : 'N/A';
+      const genreText = (novel.genre && String(novel.genre).trim()) ? String(novel.genre).trim() : 'N/A';
+
+      let tagsText = 'None';
+      if (Array.isArray(novel.tags) && novel.tags.length > 0) {
+        const cleanTags = novel.tags.map(t => String(t).trim()).filter(Boolean);
+        tagsText = cleanTags.length > 0 ? cleanTags.join(', ') : 'None';
+      } else if (typeof novel.tags === 'string' && novel.tags.trim()) {
+        tagsText = novel.tags.trim();
+      }
+
+      const read = novel.chaptersRead != null ? novel.chaptersRead : 0;
+      const totalCh = (novel.chaptersTotal != null && novel.chaptersTotal > 0)
+        ? novel.chaptersTotal
+        : (novel.status === 'Completed' ? read : '?');
+      const chLine = `Ch: ${read} / ${totalCh}`;
+      const statusText = novel.status || 'Reading';
 
       const sDate = formatDisplayDate(novel.started);
       const fDate = formatDisplayDate(novel.finished);
@@ -2705,10 +2812,20 @@
       const ratingLine = ratingVal > 0 ? `${Number(ratingVal.toFixed(1))}/10` : 'Unrated';
       const notesLine = (novel.notes && novel.notes.trim()) ? novel.notes.trim() : 'No notes.';
 
-      return `[ ${title} ]\nCh: ${ch} | Date: ${dateLine}\nRating: ${ratingLine}\nNotes: ${notesLine}`;
+      return `${serialNum}. [ ${title} ]\nAuthor: ${authorText} | Source: ${sourceText}\nGenre: ${genreText} | Tags: ${tagsText}\n${chLine} | Status: ${statusText} | Date: ${dateLine}\nRating: ${ratingLine}\nNotes: ${notesLine}`;
     });
 
-    const txtContent = blocks.join('\n\n') + '\n';
+    return summaryHeader + '\n\n' + blocks.join('\n\n') + '\n';
+  }
+  window.generateLibraryTxt = generateLibraryTxt;
+
+  function exportLibraryTxt() {
+    if (library.length === 0) {
+      showToast('Library is empty — nothing to export.', 'error');
+      return;
+    }
+
+    const txtContent = generateLibraryTxt(library);
     const filename = 'novel-shelf-export-' + localDateString() + '.txt';
 
     if (window.Android && typeof window.Android.saveText === 'function') {
@@ -3033,21 +3150,38 @@
         const target = e.target;
         if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) {
           setTimeout(() => {
-            if (typeof target.scrollIntoView === 'function') {
-              target.scrollIntoView({ block: 'center', behavior: 'smooth' });
-            }
+            scrollFieldIntoFormView(target);
           }, 60);
         }
       });
+      novelForm.addEventListener('scroll', () => {
+        if (novelForm.scrollTop !== 0) novelForm.scrollTop = 0;
+      }, { passive: true });
+    }
+
+    if (modalNovelForm) {
+      modalNovelForm.addEventListener('scroll', () => {
+        if (modalNovelForm.scrollTop !== 0) modalNovelForm.scrollTop = 0;
+      }, { passive: true });
+    }
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('scroll', () => {
+        if (currentScreen === 'form') {
+          if (window.scrollY !== 0 || window.scrollX !== 0) {
+            try { window.scrollTo(0, 0); } catch (e) { }
+          }
+          if (modalNovelForm && modalNovelForm.scrollTop !== 0) modalNovelForm.scrollTop = 0;
+          if (novelForm && novelForm.scrollTop !== 0) novelForm.scrollTop = 0;
+        }
+      }, { passive: true });
     }
 
     if (typeof window !== 'undefined' && window.visualViewport) {
       window.visualViewport.addEventListener('resize', () => {
         if (currentScreen === 'form' && document.activeElement &&
             (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
-          if (typeof document.activeElement.scrollIntoView === 'function') {
-            document.activeElement.scrollIntoView({ block: 'center', behavior: 'smooth' });
-          }
+          scrollFieldIntoFormView(document.activeElement);
         }
       });
     }
@@ -3425,10 +3559,7 @@
         field.addEventListener('focus', () => {
           setTimeout(() => {
             if (modalNovelForm.style.display === 'none') return;
-            const fieldRect = field.getBoundingClientRect();
-            if (fieldRect.bottom > window.innerHeight - 12 || fieldRect.top < 8) {
-              field.scrollIntoView({ block: 'center', behavior: 'smooth' });
-            }
+            scrollFieldIntoFormView(field);
           }, 250);
         });
       });

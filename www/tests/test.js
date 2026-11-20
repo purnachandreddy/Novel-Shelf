@@ -33,6 +33,7 @@ function createDom(initialStorage = {}) {
 
   // Mock scroll methods
   window.HTMLElement.prototype.scrollIntoView = function() {};
+  window.HTMLElement.prototype.scrollTo = function() {};
   window.scrollTo = function() {};
   window.requestAnimationFrame = function(cb) { return setTimeout(cb, 0); };
   window.cancelAnimationFrame = function(id) { clearTimeout(id); };
@@ -1232,6 +1233,77 @@ async function runTests() {
     window.setKeyboardInset(350);
 
     assert.strictEqual(doc.documentElement.style.getPropertyValue('--kb'), '350px');
+  });
+
+  // A36: Export to TXT includes summary header with status counts, serial numbers, and chapters read by total
+  await test('A36', 'Export to TXT includes summary header with status counts, serial numbers, and chapters read / total', async () => {
+    const { window } = createDom();
+    const doc = window.document;
+
+    const sampleNovels = [
+      {
+        id: 'n1',
+        title: 'Shadow Slave',
+        status: 'Reading',
+        chaptersRead: 982,
+        chaptersTotal: 1500,
+        rating: 4.5,
+        started: '2026-10-30',
+        finished: null,
+        notes: 'Great world building',
+        author: 'Guiltythree',
+        source: 'Webnovel',
+        genre: 'Dark Fantasy',
+        tags: ['Nightmare Spell', 'Sunny']
+      },
+      {
+        id: 'n2',
+        title: 'The Legendary Mechanic',
+        status: 'On Hold',
+        chaptersRead: 59,
+        chaptersTotal: null,
+        rating: 0,
+        started: '2026-10-22',
+        finished: null,
+        notes: ''
+      },
+      {
+        id: 'n3',
+        title: 'Unscientific Beast Taming',
+        status: 'Completed',
+        chaptersRead: 1962,
+        chaptersTotal: 1962,
+        rating: 5,
+        started: '2026-10-01',
+        finished: '2026-10-23',
+        notes: 'Balanced system'
+      }
+    ];
+
+    const txt = window.generateLibraryTxt(sampleNovels);
+    assert.ok(txt, 'Generated TXT should not be empty');
+
+    // Check summary header counts
+    assert.match(txt, /Total Novels:\s*3/, 'Must show Total Novels: 3');
+    assert.match(txt, /Completed:\s*1/, 'Must show Completed: 1');
+    assert.match(txt, /Reading \(Pending\):\s*1/, 'Must show Reading (Pending): 1');
+    assert.match(txt, /On Hold \(Paused\):\s*1/, 'Must show On Hold (Paused): 1');
+
+    // Check serial numbers
+    assert.match(txt, /1\.\s*\[\s*Shadow Slave\s*\]/, 'Entry 1 must have serial number 1.');
+    assert.match(txt, /2\.\s*\[\s*The Legendary Mechanic\s*\]/, 'Entry 2 must have serial number 2.');
+    assert.match(txt, /3\.\s*\[\s*Unscientific Beast Taming\s*\]/, 'Entry 3 must have serial number 3.');
+
+    // Check author, source, genre, tags details
+    assert.match(txt, /Author:\s*Guiltythree\s*\|\s*Source:\s*Webnovel/, 'Must show author and source');
+    assert.match(txt, /Genre:\s*Dark Fantasy\s*\|\s*Tags:\s*Nightmare Spell,\s*Sunny/, 'Must show genre and tags');
+    assert.match(txt, /Author:\s*Unknown\s*\|\s*Source:\s*N\/A/, 'Must show fallback author and source when missing');
+    assert.match(txt, /Genre:\s*N\/A\s*\|\s*Tags:\s*None/, 'Must show fallback genre and tags when missing');
+
+    // Check chapters read by total
+    assert.match(txt, /Ch:\s*982\s*\/\s*1500/, 'Must show chapters read / total when total exists');
+    assert.match(txt, /Ch:\s*59\s*\/\s*\?/, 'Must show ? when total is unknown');
+    assert.match(txt, /Ch:\s*1962\s*\/\s*1962/, 'Must show 1962 / 1962 for completed novel');
   });
 
   console.log('\n--- Test Summary ---');

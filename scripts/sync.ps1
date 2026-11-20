@@ -15,10 +15,12 @@
 .EXAMPLE
     .\scripts\sync.ps1
     .\scripts\sync.ps1 -Build
+    .\scripts\sync.ps1 -Release
 #>
 
 param(
-    [switch]$Build
+    [switch]$Build,
+    [switch]$Release
 )
 
 $ErrorActionPreference = "Stop"
@@ -118,12 +120,14 @@ if (Test-Path $diffExe) {
 }
 Write-Host "    No drift detected. Assets are 100% in sync." -ForegroundColor Green
 
-if ($Build) {
-    Write-Host "==> 5. Building debug APK with Gradle" -ForegroundColor Cyan
+if ($Build -or $Release) {
+    $targetTask = if ($Release) { "assembleRelease" } else { "assembleDebug" }
+    $configName = if ($Release) { "release" } else { "debug" }
+    Write-Host "==> 5. Building $configName APK with Gradle ($targetTask)" -ForegroundColor Cyan
     $androidDir = Join-Path $repoRoot "android"
     Push-Location $androidDir
     try {
-        & .\gradlew.bat assembleDebug
+        & .\gradlew.bat $targetTask
         if ($LASTEXITCODE -ne 0) {
             Write-Error "Gradle build failed!"
             exit 1
@@ -132,11 +136,11 @@ if ($Build) {
         Pop-Location
     }
 
-    $apkPath = Join-Path $repoRoot "android\app\build\outputs\apk\debug\app-debug.apk"
+    $apkPath = Join-Path $repoRoot "android\app\build\outputs\apk\$configName\app-$configName.apk"
     if (Test-Path $apkPath) {
         $apk = Get-Item $apkPath
         $sizeMb = [math]::Round($apk.Length / 1MB, 2)
-        Write-Host "==> APK built successfully!" -ForegroundColor Green
+        Write-Host "==> $configName APK built successfully!" -ForegroundColor Green
         Write-Host "    Path: $($apk.FullName)" -ForegroundColor Yellow
         Write-Host "    Size: $sizeMb MB ($($apk.Length) bytes)" -ForegroundColor Yellow
     } else {

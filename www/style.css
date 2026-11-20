@@ -2386,6 +2386,7 @@ select option {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  overscroll-behavior: none;
   background: var(--surface-base) !important;
   width: 100%;
   z-index: var(--z-modal, 100);
@@ -2406,6 +2407,7 @@ select option {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  overscroll-behavior: none;
   gap: 0;
 }
 
@@ -2417,7 +2419,7 @@ select option {
   touch-action: pan-y;
   overscroll-behavior: contain;
   scroll-padding-bottom: 16px;
-  padding: 16px calc(20px + var(--inset-right)) 16px calc(20px + var(--inset-left));
+  padding: 16px calc(20px + var(--inset-right)) 32px calc(20px + var(--inset-left));
   display: flex;
   flex-direction: column;
   gap: var(--space-form-gap, 20px);
