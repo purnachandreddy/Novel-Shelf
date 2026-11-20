@@ -1377,6 +1377,106 @@ async function runTests() {
     assert.strictEqual(placeholder2.querySelector('.placeholder-author'), null, 'Empty author should not render placeholder-author text');
   });
 
+  // A38: Bottom clearance on main content, stats container, and backup container
+  await test('A38', 'Bottom clearance uses --nav-clearance + 16px across shelf, stats, and backup', async () => {
+    assert.match(css, /--nav-clearance:\s*calc\(96px\s*\+\s*var\(--inset-bottom\)\)/i, '--nav-clearance must include 96px base');
+    assert.match(css, /\.main-content\s*\{[^}]*padding:[^;]*calc\(var\(--nav-clearance\)\s*\+\s*16px\)/i, '.main-content padding-bottom must use calc(var(--nav-clearance) + 16px)');
+    assert.match(css, /\.stats-page-container,\s*\.backup-tab-container\s*\{[^}]*padding-bottom:\s*calc\(var\(--nav-clearance\)\s*\+\s*16px\)/i, 'Stats and backup containers must use calc(var(--nav-clearance) + 16px)');
+  });
+
+  // A39: Stats Currently Reading wording and completion chip with undo toast
+  await test('A39', 'Currently Reading shows "Started today" for 0d, completion chip when read >= total, and undo works', async () => {
+    const todayStr = (new Date()).toISOString().slice(0, 10);
+    const novels = [
+      {
+        id: 'n_today',
+        title: 'Started Today Novel',
+        author: 'Author A',
+        chaptersRead: 5,
+        chaptersTotal: 100,
+        status: 'Reading',
+        started: todayStr
+      },
+      {
+        id: 'n_finished_ch',
+        title: 'Ready to Complete Novel',
+        author: 'Author B',
+        chaptersRead: 1962,
+        chaptersTotal: 1962,
+        status: 'Reading',
+        started: '2026-01-01'
+      }
+    ];
+
+    const { window } = createDom({
+      novelshelf_library_v1: JSON.stringify(novels)
+    });
+    const doc = window.document;
+
+    // Switch to Stats screen
+    doc.getElementById('nav-tab-stats').click();
+    const readingItems = doc.querySelectorAll('.reading-progress-item');
+    assert.strictEqual(readingItems.length, 2, 'Must have 2 in-progress reading items');
+
+    // Check "Started today" wording for 0d
+    const todayItem = Array.from(readingItems).find(el => el.textContent.includes('Started Today Novel'));
+    assert.ok(todayItem, 'Started Today item must be present');
+    assert.ok(todayItem.querySelector('.reading-badge-days').textContent.includes('Started today'), '0d reading must display "Started today"');
+    assert.strictEqual(todayItem.querySelector('.chip-mark-completed'), null, 'Incomplete novel must not have mark completed chip');
+
+    // Check completion chip for 1962/1962
+    const completeItem = Array.from(readingItems).find(el => el.textContent.includes('Ready to Complete Novel'));
+    assert.ok(completeItem, 'Ready to complete item must be present');
+    const chipBtn = completeItem.querySelector('.chip-mark-completed');
+    assert.ok(chipBtn, 'Novel with chaptersRead >= chaptersTotal must show completion chip');
+    assert.strictEqual(chipBtn.textContent.trim(), 'All chapters read: mark completed');
+
+    // Verify novel status is NOT changed automatically before user taps
+    const rawLibrary = JSON.parse(window.localStorage.getItem('novelshelf_library_v1'));
+    const rawNovel = rawLibrary.find(n => n.id === 'n_finished_ch');
+    assert.strictEqual(rawNovel.status, 'Reading', 'Status must NOT change automatically before tap');
+
+    // Also verify chip appears on details page
+    doc.getElementById('nav-tab-shelf').click();
+    const readyCard = doc.querySelector('.novel-card[data-id="n_finished_ch"]');
+    assert.ok(readyCard, 'Card must exist on shelf');
+    readyCard.click();
+    const detailChip = doc.getElementById('btn-detail-mark-completed');
+    assert.ok(detailChip, 'Details page must also display "All chapters read: mark completed" chip');
+
+    // Tap completion chip
+    detailChip.click();
+
+    // Verify status changed to Completed and finished date set
+    const updatedLibrary = JSON.parse(window.localStorage.getItem('novelshelf_library_v1'));
+    const updatedNovel = updatedLibrary.find(n => n.id === 'n_finished_ch');
+    assert.strictEqual(updatedNovel.status, 'Completed', 'Tapping chip must set status to Completed');
+    assert.ok(updatedNovel.finished, 'Finished date must be set');
+    assert.strictEqual(updatedNovel.finishedEstimated, false);
+
+    // Verify undo toast appeared
+    const toast = doc.querySelector('.toast-undo') || doc.querySelector('.toast:last-child');
+    assert.ok(toast, 'Undo toast must be shown');
+    assert.ok(toast.textContent.includes('Marked "Ready to Complete Novel" as completed'));
+
+    // Tap undo
+    const undoBtn = toast.querySelector('.toast-action-btn');
+    assert.ok(undoBtn, 'Undo button must exist in toast');
+    undoBtn.click();
+
+    // Verify status restored to Reading
+    const restoredLibrary = JSON.parse(window.localStorage.getItem('novelshelf_library_v1'));
+    const restoredNovel = restoredLibrary.find(n => n.id === 'n_finished_ch');
+    assert.strictEqual(restoredNovel.status, 'Reading', 'Tapping undo must restore status to Reading');
+    assert.strictEqual(restoredNovel.finished, '', 'Finished date must be cleared');
+  });
+
+  // A40: Form spacing uses --space-form-gap token for form-row
+  await test('A40', 'Form spacing uses --space-form-gap token for form-row across viewports', async () => {
+    assert.match(css, /\.form-row\s*\{[^}]*gap:\s*var\(--space-form-gap,\s*20px\)/i, '.form-row must use --space-form-gap');
+    assert.match(css, /@media\s*\(max-width:\s*460px\)\s*\{[^}]*\.form-row\s*\{[^}]*gap:\s*var\(--space-form-gap,\s*20px\)/i, '.form-row mobile query must use --space-form-gap');
+  });
+
   console.log('\n--- Test Summary ---');
   const passed = results.filter(r => r.status === 'PASS').length;
   const failed = results.filter(r => r.status === 'FAIL').length;

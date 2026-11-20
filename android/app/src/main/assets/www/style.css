@@ -179,7 +179,7 @@
   --inset-left: env(safe-area-inset-left, 0px);
   --inset-right: env(safe-area-inset-right, 0px);
   --kb: 0px;
-  --nav-clearance: calc(84px + var(--inset-bottom));
+  --nav-clearance: calc(96px + var(--inset-bottom));
 
   /* 120Hz-tuned easing */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -981,7 +981,7 @@ select option {
 /* ---- Main Content ---- */
 .main-content {
   flex: 1;
-  padding: 14px calc(16px + var(--inset-right)) var(--nav-clearance) calc(16px + var(--inset-left));
+  padding: 14px calc(16px + var(--inset-right)) calc(var(--nav-clearance) + 16px) calc(16px + var(--inset-left));
 }
 
 @keyframes slideDown {
@@ -2554,7 +2554,7 @@ select option {
 
 .form-row {
   display: flex;
-  gap: 10px;
+  gap: var(--space-form-gap, 20px);
 }
 
 .flex-1 {
@@ -2565,7 +2565,30 @@ select option {
 @media (max-width: 460px) {
   .form-row {
     flex-direction: column;
+    gap: var(--space-form-gap, 20px);
   }
+}
+
+.chip-mark-completed {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--amber-dim);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  color: var(--amber-bright);
+  font-size: .72rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--r-full);
+  cursor: pointer;
+  margin-top: 6px;
+  font-family: inherit;
+  transition: transform var(--t-fast), background var(--t-fast);
+}
+
+.chip-mark-completed:active {
+  transform: scale(0.96);
+  background: rgba(245, 158, 11, 0.28);
 }
 
 .form-label {
@@ -3499,7 +3522,7 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding-bottom: 30px;
+  padding-bottom: calc(var(--nav-clearance) + 16px);
 }
 
 .backup-desc {

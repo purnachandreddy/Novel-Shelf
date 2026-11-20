@@ -1694,6 +1694,11 @@
          <button class="btn btn-secondary btn-sm" id="btn-detail-add-5">＋5 Chapters</button>
          ${/^https?:\/\//i.test(novel.link || '') ? `<a class="btn btn-primary btn-sm detail-read-btn" href="${escHtml(novel.link)}" target="_blank" rel="noopener noreferrer">Read ↗</a>` : ''}`;
 
+    const hasReadTotal = novel.chaptersTotal && read >= total && !isCompleted;
+    const markCompletedChip = hasReadTotal
+      ? `<button type="button" class="chip-mark-completed" id="btn-detail-mark-completed">All chapters read: mark completed</button>`
+      : '';
+
     detailBodyContent.innerHTML = `
       <div class="detail-hero">
         <div class="detail-cover-box">${coverHtml}</div>
@@ -1715,6 +1720,7 @@
         <div class="progress-track" style="height:8px;margin-top:6px">
           <div class="progress-fill" style="width: ${total ? percent : 0}%"></div>
         </div>
+        ${markCompletedChip}
         <div class="detail-progress-buttons">
           ${progressButtonsHtml}
         </div>
@@ -1737,6 +1743,10 @@
     if (btnAdd1) btnAdd1.addEventListener('click', () => incrementChapter(novel.id, 1));
     const btnAdd5 = document.getElementById('btn-detail-add-5');
     if (btnAdd5) btnAdd5.addEventListener('click', () => incrementChapter(novel.id, 5));
+    const btnMarkCompleted = document.getElementById('btn-detail-mark-completed');
+    if (btnMarkCompleted) {
+      btnMarkCompleted.addEventListener('click', () => markNovelCompletedWithUndo(novel.id));
+    }
 
     if (detailHeaderTitle) {
       detailHeaderTitle.textContent = novel.title;
@@ -2107,6 +2117,51 @@
     }, 6000);
   }
 
+  function markNovelCompletedWithUndo(id) {
+    const novel = library.find(n => n.id === id);
+    if (!novel) return;
+
+    const prevStatus = novel.status;
+    const prevFinished = novel.finished;
+    const prevFinishedEstimated = novel.finishedEstimated;
+
+    novel.status = 'Completed';
+    novel.finished = localDateString();
+    novel.finishedEstimated = false;
+    novel.updatedAt = Date.now();
+
+    const saved = saveLibrary();
+    if (!saved) return;
+
+    renderLibrary();
+    if (viewNovelDetails && viewNovelDetails.style.display === 'flex' && viewingNovelId === id) {
+      renderNovelDetailsContent(novel);
+    }
+    if (viewStats && viewStats.style.display === 'flex') {
+      updateStatsDashboard();
+    }
+
+    showToast(`Marked "${novel.title}" as completed`, 'undo', {
+      text: 'Undo',
+      onClick: () => {
+        novel.status = prevStatus;
+        novel.finished = prevFinished;
+        novel.finishedEstimated = prevFinishedEstimated;
+        novel.updatedAt = Date.now();
+        saveLibrary();
+        renderLibrary();
+        if (viewNovelDetails && viewNovelDetails.style.display === 'flex' && viewingNovelId === id) {
+          renderNovelDetailsContent(novel);
+        }
+        if (viewStats && viewStats.style.display === 'flex') {
+          updateStatsDashboard();
+        }
+        showToast(`Restored "${novel.title}" to ${prevStatus}`, 'info');
+      }
+    }, 6000);
+  }
+  window.markNovelCompletedWithUndo = markNovelCompletedWithUndo;
+
   // --- Cover Handling ---
   function setCoverPreview(src) {
     coverImgPreview.src = src;
@@ -2344,6 +2399,11 @@
             ? `<span class="stale-read-indicator" title="No chapters logged in 14+ days">Untouched 14d+</span>`
             : '';
 
+          const hasReadTotal = n.chaptersTotal && n.chaptersRead >= n.chaptersTotal && (n.status || '').toLowerCase() !== 'completed';
+          const markCompletedChip = hasReadTotal
+            ? `<button type="button" class="chip-mark-completed" data-action="mark-completed" data-id="${escHtml(n.id)}">All chapters read: mark completed</button>`
+            : '';
+
           let estimateHtml = '';
           if (n.estimatedFinish) {
             const staleClass = n.estimatedFinish.isStale ? ' stale-estimate' : '';
@@ -2362,23 +2422,40 @@
             metaHtml = `<div class="reading-row-meta"><span>Last updated ${n.daysSinceUpdate === 0 ? 'today' : `${n.daysSinceUpdate}d ago`}</span></div>`;
           }
 
+          const daysBadgeText = n.daysReading === 0
+            ? 'Started today'
+            : (n.daysReading === 1 ? '1d reading' : `${n.daysReading}d reading`);
+
           item.innerHTML = `
             <div class="reading-item-col-left">
               <div class="reading-item-title">${escHtml(n.title)}</div>
               <div class="reading-item-ch">Ch. ${n.chaptersRead}${totalStr}</div>
               ${estimateHtml}
               ${metaHtml}
+              ${markCompletedChip}
             </div>
             <div class="reading-item-col-right reading-item-badge-wrap">
-              <span class="reading-badge-days">${n.daysReading}d reading</span>
+              <span class="reading-badge-days">${daysBadgeText}</span>
               ${staleTag}
             </div>
           `;
           // Click to view details
           item.style.cursor = 'pointer';
-          item.addEventListener('click', () => {
+          item.addEventListener('click', (e) => {
+            if (e.target && e.target.closest && e.target.closest('[data-action="mark-completed"]')) {
+              return;
+            }
             openNovelDetails(n.id, 'stats');
           });
+
+          const chipBtn = item.querySelector('[data-action="mark-completed"]');
+          if (chipBtn) {
+            chipBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              markNovelCompletedWithUndo(n.id);
+            });
+          }
+
           readingProgressList.appendChild(item);
         });
       } else {
