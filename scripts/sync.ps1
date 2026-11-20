@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     One-command sync, test, and verification script for NovelShelf.
 
@@ -38,7 +38,7 @@ try {
 
 $buildTimestamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
 $buildInfoContent = @"
-// Novel Shelf Build Information — generated automatically at build/sync time
+// Novel Shelf Build Information - generated automatically at build/sync time
 window.BUILD_INFO = {
   versionName: '1.0.0',
   versionCode: 1,
@@ -46,7 +46,7 @@ window.BUILD_INFO = {
   buildTime: '$buildTimestamp'
 };
 "@
-Set-Content -Path (Join-Path $srcDir "build-info.js") -Value $buildInfoContent -Encoding UTF8
+[System.IO.File]::WriteAllText((Join-Path $srcDir "build-info.js"), $buildInfoContent, [System.Text.Encoding]::UTF8)
 
 Write-Host "==> 1. Syncing assets: www -> android/app/src/main/assets/www" -ForegroundColor Cyan
 if (-not (Test-Path $destDir)) {
