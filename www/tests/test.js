@@ -1186,8 +1186,8 @@ async function runTests() {
     assert.match(buildStamp.textContent, /^v\d+\.\d+\.\d+\s*\(\d+\)/, 'Build stamp must display version and version code');
   });
 
-  // A34: Form screen height is constrained to --app-height so form-scroll-body scrolls internally with overflow-y: auto
-  await test('A34', 'Form screen is constrained to --app-height and form-scroll-body has overflow-y: auto for internal scrolling', async () => {
+  // A34: Form screen fills viewport with fixed inset 0 and form-scroll-body has overflow-y: auto for internal scrolling
+  await test('A34', 'Form screen fills viewport with fixed inset 0 and form-scroll-body has overflow-y: auto for internal scrolling', async () => {
     const { window } = createDom();
     const doc = window.document;
 
@@ -1198,8 +1198,37 @@ async function runTests() {
     const scrollBody = formModal.querySelector('.form-scroll-body');
     assert.ok(scrollBody, 'Form scroll body must exist');
 
-    assert.match(css, /\.form-page-view\s*\{[^}]*height:\s*var\(--app-height/i, '.form-page-view must constrain height to --app-height');
+    assert.match(css, /\.form-page-view\s*\{[^}]*position:\s*fixed/i, '.form-page-view must use position: fixed');
+    assert.match(css, /\.form-page-view\s*\{[^}]*inset:\s*0/i, '.form-page-view must use inset: 0');
+    assert.doesNotMatch(css, /\.form-page-view\s*\{[^}]*(?<!-)\bheight:\s*var/i, '.form-page-view must not derive height from --app-height');
     assert.match(css, /\.form-scroll-body[^{]*\{[^}]*overflow-y:\s*auto/i, '.form-scroll-body must have overflow-y: auto');
+  });
+
+  // A35: Form action bar stays docked at bottom without parent height dependency and watchdog re-evaluates
+  await test('A35', 'Form screen has position: fixed inset 0 without parent height dependency, action bar stays docked, and watchdog handles focusout', async () => {
+    const { window } = createDom();
+    const doc = window.document;
+
+    doc.getElementById('btn-add-novel-top').click();
+    const formModal = doc.getElementById('modal-novel-form');
+    assert.strictEqual(formModal.style.display, 'flex');
+
+    // Simulate keyboard open and close resize sequence
+    window.innerHeight = 450;
+    window.dispatchEvent(new window.Event('resize'));
+    if (window.onKeyboardHidden) window.onKeyboardHidden();
+
+    window.innerHeight = 892;
+    window.dispatchEvent(new window.Event('resize'));
+
+    // Trigger watchdog
+    if (window.runKeyboardWatchdog) window.runKeyboardWatchdog();
+
+    const actionBar = formModal.querySelector('.form-actions-bottom');
+    assert.ok(actionBar, 'Form action bar must exist');
+    assert.match(css, /\.form-actions-bottom\s*\{[^}]*flex:\s*none/i, 'Action bar must have flex: none');
+    assert.match(css, /\.form-actions-bottom\s*\{[^}]*position:\s*static/i, 'Action bar must have position: static');
+    assert.match(css, /\.form-actions-bottom\s*\{[^}]*padding:[^;]*var\(--inset-bottom\)/i, 'Action bar must pad for bottom insets');
   });
 
   console.log('\n--- Test Summary ---');

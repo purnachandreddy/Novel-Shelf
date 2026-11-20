@@ -34,6 +34,8 @@ class MainActivity : AppCompatActivity() {
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
     private var currentInsetsJs: String? = null
     private var lastImeVisible: Boolean = false
+    private val insetsHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var pendingImeCheck: Runnable? = null
 
     private fun applyInsets(insets: WindowInsetsCompat) {
         val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
@@ -67,6 +69,20 @@ class MainActivity : AppCompatActivity() {
             binding.webView.evaluateJavascript("if (window.onKeyboardHidden) { window.onKeyboardHidden(); } else if (document.activeElement && typeof document.activeElement.blur === 'function') { document.activeElement.blur(); }", null)
         }
         lastImeVisible = isImeVisible
+
+        // Native self-healing: 200ms after inset change, detect if IME closed and clear any residual bottom padding
+        pendingImeCheck?.let { insetsHandler.removeCallbacks(it) }
+        val checkRunnable = Runnable {
+            val rootInsets = ViewCompat.getRootWindowInsets(binding.root)
+            if (rootInsets != null) {
+                val stillIme = rootInsets.isVisible(WindowInsetsCompat.Type.ime())
+                if (!stillIme && binding.root.paddingBottom > 0) {
+                    applyInsets(rootInsets)
+                }
+            }
+        }
+        pendingImeCheck = checkRunnable
+        insetsHandler.postDelayed(checkRunnable, 200)
     }
 
     private val filePickerLauncher = registerForActivityResult(
@@ -258,6 +274,17 @@ class MainActivity : AppCompatActivity() {
         webView.overScrollMode = WebView.OVER_SCROLL_NEVER
         webView.isHapticFeedbackEnabled = true
 
+        webView.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) {
+                val rootInsets = ViewCompat.getRootWindowInsets(binding.root)
+                if (rootInsets != null) {
+                    applyInsets(rootInsets)
+                } else {
+                    binding.root.requestApplyInsets()
+                }
+            }
+        }
+
         // Expose AndroidBridge so JS can call Android.saveJson(…)
         webView.addJavascriptInterface(AndroidBridge(), "Android")
 
@@ -350,6 +377,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            val rootInsets = ViewCompat.getRootWindowInsets(binding.root)
+            if (rootInsets != null) {
+                applyInsets(rootInsets)
+            } else {
+                binding.root.requestApplyInsets()
+            }
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         binding.webView.onResume()
@@ -368,6 +407,7 @@ class MainActivity : AppCompatActivity() {
 
     // B4: remove WebView from parent layout before destroying to prevent leaks
     override fun onDestroy() {
+        pendingImeCheck?.let { insetsHandler.removeCallbacks(it) }
         (binding.webView.parent as? ViewGroup)?.removeView(binding.webView)
         binding.webView.stopLoading()
         binding.webView.destroy()

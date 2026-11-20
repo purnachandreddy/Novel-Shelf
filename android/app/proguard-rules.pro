@@ -7,6 +7,10 @@
 # Preserve AndroidBridge inner class and all its methods
 -keep class com.novelshelf.app.MainActivity$AndroidBridge { *; }
 
-# Preserve MainActivity and callback classes
+# Preserve MainActivity, inner classes, callbacks and packages
 -keep class com.novelshelf.app.MainActivity { *; }
--keepclassmembers class androidx.core.view.WindowInsetsAnimationCompat$Callback { *; }
+-keep class com.novelshelf.app.MainActivity$* { *; }
+-keep class com.novelshelf.app.** { *; }
+-keepclassmembers class * extends androidx.core.view.WindowInsetsAnimationCompat$Callback { *; }
+-keepclassmembers class * extends androidx.core.view.OnApplyWindowInsetsListener { *; }
+-keepclassmembers class * extends androidx.activity.OnBackPressedCallback { *; }

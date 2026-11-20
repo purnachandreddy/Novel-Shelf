@@ -582,6 +582,25 @@
     updateDebugOverlay();
   };
 
+  let watchdogTimer = null;
+  function runKeyboardWatchdog() {
+    if (watchdogTimer) clearTimeout(watchdogTimer);
+    watchdogTimer = setTimeout(() => {
+      const active = document.activeElement;
+      const isInputFocused = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || (active.isContentEditable && active.isContentEditable !== 'false'));
+      if (!isInputFocused) {
+        const formEl = document.getElementById('modal-novel-form');
+        if (formEl && formEl.style.display !== 'none') {
+          // Clear any stale keyboard state and force reflow
+          void document.documentElement.offsetHeight;
+          updateAppHeight();
+          updateDebugOverlay();
+        }
+      }
+    }, 150);
+  }
+  window.runKeyboardWatchdog = runKeyboardWatchdog;
+
   let prevInnerH = typeof window !== 'undefined' ? window.innerHeight : 800;
   function handleResizeOrVisibility() {
     updateAppHeight();
@@ -592,6 +611,7 @@
       }
     }
     prevInnerH = newH;
+    runKeyboardWatchdog();
     updateDebugOverlay();
   }
 
@@ -613,8 +633,16 @@
     });
   }
   if (typeof document !== 'undefined') {
+    document.addEventListener('focusout', (e) => {
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+        runKeyboardWatchdog();
+      }
+    });
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) handleResizeOrVisibility();
+      if (!document.hidden) {
+        handleResizeOrVisibility();
+        runKeyboardWatchdog();
+      }
     });
   }
 
